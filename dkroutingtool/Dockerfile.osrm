@@ -1,0 +1,11 @@
+FROM debian:stretch
+
+RUN apt-get update
+
+RUN apt-get -y install git g++ cmake libboost-dev libboost-filesystem-dev libboost-thread-dev libboost-system-dev libboost-regex-dev libstxxl-dev libxml2-dev libsparsehash-dev libbz2-dev zlib1g-dev libzip-dev libgomp1 lua5.2 liblua5.2-dev libluabind-dev pkg-config libgdal-dev libboost-program-options-dev libboost-iostreams-dev libboost-test-dev libtbb-dev libexpat1-dev wget
+
+RUN git clone -b 5.21 --single-branch https://github.com/Project-OSRM/osrm-backend.git
+
+COPY /c_binding_resources/table_parameters.hpp osrm-backend/include/engine/api/table_parameters.hpp
+
+RUN cd osrm-backend && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . && cmake --build . --target install

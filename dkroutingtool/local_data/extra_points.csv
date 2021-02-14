@@ -1,0 +1,4 @@
+GPS (Longitude),GPS (Latitude),id,name,type
+7.4189527,43.7382085,1,waste_basket,Depot
+7.42750,43.74123,2,East-UNLOAD,Unload
+7.42244,43.73462,3,West-UNLOAD,Unload

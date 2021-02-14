@@ -1,0 +1,18 @@
+Build:
+    osm-data:
+        geofabrik-url: https://download.geofabrik.de/europe/monaco-latest.osm.pbf
+    vehicle-types:  
+        - wheelbarrow
+        - 3wheeler
+
+Run:
+    storage-context: gdrive
+    aws:
+        accesskeyid: 
+        secretkey: 
+        s3bucketname: 
+    gdrive:
+        credentials_file: 
+        customer_data_id: 
+        facility_data_id: 
+        root_folder_id: 
