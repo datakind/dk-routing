@@ -192,12 +192,12 @@ def create_fol_cust_markers(border_color, marker_text, loc, pop_up):
     pop_up_html = ""
     pop_up_html += f'Trip index: {marker_text} <br>'
     for i, pop_up_entry in enumerate(pop_up):
-        if type(pop_up_entry) is not float:
+        if isinstance(pop_up_entry, str):
             pop_up_html += pop_up_entry
             if i < len(pop_up) - 1:
                 pop_up_html += '<br>'
         else:
-            if np.isnan(pop_up_entry) != True:
+            if not np.isnan(pop_up_entry):
                 pop_up_html += pop_up_entry
                 if i < len(pop_up) - 1:
                     pop_up_html += '<br>'
