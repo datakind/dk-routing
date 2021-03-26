@@ -198,7 +198,7 @@ def create_fol_cust_markers(border_color, marker_text, loc, pop_up):
                 pop_up_html += '<br>'
         else:
             if not np.isnan(pop_up_entry):
-                pop_up_html += pop_up_entry
+                pop_up_html += str(pop_up_entry)
                 if i < len(pop_up) - 1:
                     pop_up_html += '<br>'
 
