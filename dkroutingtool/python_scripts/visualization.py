@@ -85,7 +85,7 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
         uniq_color_map = {}
         j = 0
         for route_id, route_name in route_names.items():
-            new_route_names.append("Trip {}, {}".format(route_id, route_name))
+            new_route_names.append("Trip {}, {}/{}".format(route_id, route_name, nodes[route_id][0][2][0]))
             color_map[j] = colorList[j % len(colorList)]
             j += 1
     else:
