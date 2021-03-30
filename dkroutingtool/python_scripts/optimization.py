@@ -14,6 +14,7 @@ import math
 import time
 from time import strftime, gmtime
 import os
+import traceback
 
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
@@ -34,7 +35,7 @@ resequencing_step_size = 0.0002 # Arbitrary and small, in the scale of long/lat 
 clustering_agglomeration = True #Uses naive thresholding agglomeration unless sprawling is enabled
 agg_threshold_radius = 5 #Units in seconds of travel
 agglomeration_sprawling = True #Creates clusters that sprawl as long as a node is within the threshold, and probably better to use smaller radii than naive method
-reoptimize_subnodes = True #Enable to actually re-optimize routes if agglomeration is executed, this is beneficial for dense meandering streets but takes more time
+reoptimize_subnodes = 'relaxed' #Enable (either 'strict' or 'relaxed') to actually re-optimize routes if agglomeration is executed, this is beneficial for dense meandering streets but takes more time (disable with the value 'disabled')
 reoptimize_time_factor = 0.2 #Amount of time allowed to reoptimize the subnodes after the supernode routing as a percentage of the initial allowed time
 
 #max_time_horizon = 28800
@@ -791,15 +792,22 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
         
     # Solve the problem.
     if warmed_up is not None:
-        if reoptimize_subnodes: #Enable to actually re-optimize routes, this is beneficial for dense meandering streets 
-            for vehicle_index, route in enumerate(warmed_up):
-                for node_index in route:
-                    routing.SetAllowedVehiclesForIndex([vehicle_index], manager.NodeToIndex(node_index))
-            search_parameters.time_limit.seconds = int(60 * max_solver_time_min * reoptimize_time_factor)
-            assignment = routing.SolveWithParameters(search_parameters)
-        else:
-            routing.CloseModel()
-            assignment = routing.ReadAssignmentFromRoutes(warmed_up, ignore_inactive_indices=True)
+        try:
+            if reoptimize_subnodes == 'strict': 
+                for vehicle_index, route in enumerate(warmed_up):
+                    for node_index in route:
+                        routing.SetAllowedVehiclesForIndex([vehicle_index], manager.NodeToIndex(node_index))
+                search_parameters.time_limit.seconds = int(60 * max_solver_time_min * reoptimize_time_factor)
+                assignment = routing.SolveWithParameters(search_parameters)
+            elif reoptimize_subnodes == 'relaxed':
+                clustered_assignment = routing.ReadAssignmentFromRoutes(warmed_up, ignore_inactive_indices=True)
+                assignment = routing.SolveFromAssignmentWithParameters(clustered_assignment, search_parameters)
+            else:
+                routing.CloseModel()
+                assignment = routing.ReadAssignmentFromRoutes(warmed_up, ignore_inactive_indices=True)
+        except:
+            traceback.print_exc()
+            assignment = None
     else:
         assignment = routing.SolveWithParameters(search_parameters)
         assert assignment is not None, "No solution found, maybe increase allowed time or vehicles"
