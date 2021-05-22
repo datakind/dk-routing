@@ -296,25 +296,25 @@ class DataProblem():
         self._time_windows = [(self.start_seconds, self.configured_time_horizon) for j in range(self._num_locations)]
         
         # User-provided time windows
-       
-        user_time_windows = node_data.get_attr('time_windows')[_boolean_selected]
-        
-        time_windows_specified = 0
-        for window in user_time_windows: # A bit of a silly loop
-            if isinstance(window, str):
-                time_windows_specified += 1        
-        
-        processed_time_windows = []
-        for window in user_time_windows:
-            if isinstance(window, str):
-                start, end = window.split('-')
-                seconds = (clean_up_time(start), clean_up_time(end))
-                processed_time_windows.append(seconds)
-            elif np.isnan(window):
-                processed_time_windows.append((self.start_seconds, self.configured_time_horizon)) # A whole day for unspecified locations
-        
-        if time_windows_specified > 0:
-            self._time_windows = processed_time_windows
+        if config.get('use_time_windows', False):
+            user_time_windows = node_data.get_attr('time_windows')[_boolean_selected]
+
+            time_windows_specified = 0
+            for window in user_time_windows: # A bit of a silly loop
+                if isinstance(window, str):
+                    time_windows_specified += 1        
+
+            processed_time_windows = []
+            for window in user_time_windows:
+                if isinstance(window, str):
+                    start, end = window.split('-')
+                    seconds = (clean_up_time(start), clean_up_time(end))
+                    processed_time_windows.append(seconds)
+                elif np.isnan(window):
+                    processed_time_windows.append((self.start_seconds, self.configured_time_horizon)) # A whole day for unspecified locations
+
+            if time_windows_specified > 0:
+                self._time_windows = processed_time_windows
         
         if verbose:
             print('Time windows', self._time_windows)
@@ -832,23 +832,36 @@ def create_route_dict(assignment, manager, routing, data, nodedata, vehicles, ro
     filtered_route_dict = {}
     new_route_dict = {}
     new_vehicles = {}
+    
+    time_dimension = routing.GetDimensionOrDie('Time')
+    
     for vehicle_id in range(data.num_vehicles):
         time_matrix = CreateTimeEvaluator(data, vehicle_id=vehicle_id)
         index = routing.Start(vehicle_id)
-        route_dict[vehicle_id] = {"route": [], "total_dist": 0, "indexed_route": [], 'loads': [], 'demands': []}
+        route_dict[vehicle_id] = {"route": [], "total_dist": 0, "indexed_route": [], 'loads': [], 'demands': [], 'time': [], 'current_distance': [], 'travel_time': [], 'next_names':[], "current_names": []}
         route_dist = 0 
         route_load = 0
         route_time = 0
+        
         while not routing.IsEnd(index):
             next_index = assignment.Value(routing.NextVar(index))
             node_index = manager.IndexToNode(index)
             next_node_index = manager.IndexToNode(next_index)
             route_dist += data.vehicle[vehicle_id].travel_distance_matrix[node_index][next_node_index]
+            route_dict[vehicle_id]['current_names'].append(data.nodes_to_names[node_index])
+            route_dict[vehicle_id]['next_names'].append(data.nodes_to_names[next_node_index])
+            route_dict[vehicle_id]['travel_time'].append(data.vehicle[vehicle_id].time_distance_matrix[node_index][next_node_index])
+            route_dict[vehicle_id]['current_distance'].append(data.vehicle[vehicle_id].travel_distance_matrix[node_index][next_node_index])
             #route_time += time_matrix(index, next_index)
             route_time += time_matrix.time_evaluator(node_index, next_node_index)
             #route_load += data.demands[node_index] #+ assignment.Value(routing.GetDimensionOrDie("Capacity").CumulVar(index))
             if data.demands[node_index] >= 0:
                 route_load += data.demands[node_index]
+            
+            time_var = time_dimension.CumulVar(index)
+            time_value = assignment.Value(time_var)
+            route_dict[vehicle_id]['time'].append(time_value)
+                
             route_dict[vehicle_id]["route"].append((data.locations[node_index], route_load))
             route_dict[vehicle_id]["indexed_route"].append(nodedata.df_gps_verbose.index[node_index])
             current_load = assignment.Value(routing.GetDimensionOrDie("Capacity").CumulVar(node_index))
