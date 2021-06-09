@@ -1,6 +1,8 @@
+output_destination="/home/username/routing_output/"
+
 docker run --name routing_tool dkroutingtool:dev && 
-docker cp routing_tool:/maps /home/zebreu/routing_output/ &&
-docker cp routing_tool:/route_geojson.geojson /home/zebreu/routing_output/ &&
-docker cp routing_tool:/node_geojson.geojson /home/zebreu/routing_output/ &&
-docker cp routing_tool:/solution.txt /home/zebreu/routing_output &&
+docker cp routing_tool:/maps $output_destination &&
+docker cp routing_tool:/route_geojson.geojson $output_destination &&
+docker cp routing_tool:/node_geojson.geojson $output_destination &&
+docker cp routing_tool:/solution.txt $output_destination &&
 docker container prune --force
