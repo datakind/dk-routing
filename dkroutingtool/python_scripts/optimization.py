@@ -674,7 +674,6 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
         partial(create_demand_evaluator(data), manager))
     add_capacity_constraints(routing, data, demand_evaluator_index)
 
-   ## SEB THIS IS NEW 
     def add_time_window_constraints(routing, manager, data, time_evaluator_index):
         """Add Global Span constraint"""
         time = 'Time'
@@ -710,7 +709,6 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
             # routing.AddToAssignment(time_dimension.SlackVar(self.routing.End(vehicle_id)))
         time_dimension.SetGlobalSpanCostCoefficient(span_cost_coefficient) 
 
-    ## SEB THIS IS NEW 
     # Add Time Window constraint
     add_time_window_constraints(routing, manager, data, transit_callback_index_arr)
     
@@ -1007,91 +1005,6 @@ def resequence(node_data, data, routing, routes_all, original_routes, vehicle_pr
         new_routes_for_assignment = reconstructed_routes
         
     return routing.ReadAssignmentFromRoutes(new_routes_for_assignment, ignore_inactive_indices=True)
-
-def resequence_last(node_data, data, routing, routes_all, original_routes, vehicle_profiles, unload_routes = None):
-    ordered_nodes = dict()
-    per_route_nodes = dict()
-    
-    if unload_routes is not None:
-        true_routes = copy.deepcopy(original_routes)
-        original_routes = unload_routes['fake_routes']
-        vehicle_indices = unload_routes['routes_to_vehicles']
-        profiles = [vehicle_profiles[index] for index in vehicle_indices]
-    else:
-        profiles = vehicle_profiles
-    
-    for route_key, old_route in enumerate(original_routes):
-        if len(old_route) == 0:
-            continue
-        per_route_nodes[route_key] = []
-        for node in old_route:
-            name = data.nodes_to_names[node]
-            per_route_nodes[route_key].append(node_data.df_gps_verbose[node_data.df_gps_verbose['name'] == name].values[0])
-
-        route_df = pd.DataFrame(per_route_nodes[route_key])
-        route_df.columns = node_data.df_gps_verbose.columns
-        
-        step_size_factor = 1.0
-        if f'long_snapped_{profiles[route_key]}' in route_df.columns:
-            route_df['long_snapped'] = route_df[f'long_snapped_{profiles[route_key]}']
-            route_df['lat_snapped'] = route_df[f'lat_snapped_{profiles[route_key]}']
-            step_size_factor = 0.5
-        else:
-            print('Failed to find snapped coordinates while reordering trip sequence.')
-            
-        segments = routes_all[route_key]['geometry']['coordinates']    
-        segments = interpolate_segment(segments, step_size_factor)
-        
-        segment_to_node = dict()
-        forbidden = set()
-        reordered_nodes = []
-        for segment in segments:
-            rows = find_near_point(segment, route_df, forbidden, step_size_factor)
-            for row in rows:
-                reordered_nodes.append(row)
-
-        new_route_df = pd.DataFrame(reordered_nodes)
-        new_route_df.columns = route_df.columns
-        ordered_nodes[route_key] = new_route_df        
-    
-    
-    new_routes_for_assignment = [[] for vehicle in range(len(original_routes))]
-    for key in ordered_nodes:
-        new_route = ordered_nodes[key]
-        route_names = new_route['name'].values
-
-        full_names = node_data.df_gps_verbose.iloc[data._boolean_selected]['name'].values
-        node_indices = []
-        for route_name in route_names:
-            node_indices.append(np.where(full_names == route_name)[0][0])
-        new_routes_for_assignment[key] = node_indices
-    
-    for index in range(len(new_routes_for_assignment)):
-        if len(new_routes_for_assignment[index]) == len(original_routes[index]): # Check to see if nodes are missed
-            continue
-        else:
-            new_routes_for_assignment[index] = original_routes[index]
-    
-    if unload_routes is not None:
-        reconstructed_routes = []
-        keys = unload_routes['routes_to_vehicles']
-        starts = unload_routes['starts']
-        for key in set(keys):
-            reconstructed_routes.append([])
-            
-        for key, subroute in zip(keys, new_routes_for_assignment):
-            reconstructed_routes[key].append(subroute)
-            
-        for key in set(keys):
-            start_points = starts[key][1:] #skip the true start point
-            total_subroute = reconstructed_routes[key][0] # grabs the first one since there needs to be one
-            for start_point, subroute in zip(start_points, reconstructed_routes[key][1:]):
-                total_subroute += [start_point]+subroute
-            reconstructed_routes[key] = total_subroute
-        new_routes_for_assignment = reconstructed_routes
-        
-    return routing.ReadAssignmentFromRoutes(new_routes_for_assignment, ignore_inactive_indices=True)
-
 
 def produce_temporary_routes(routes, vehicle_profiles, data, unload_routes = None):    
     routes_all = []
