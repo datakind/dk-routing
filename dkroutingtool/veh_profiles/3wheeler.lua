@@ -35,7 +35,7 @@ function setup()
 
     default_mode              = mode.driving,
     default_speed             = avg_speed, --average moving speed for all 3-wheelers, kph -> m/s
-    oneway_handling           = false,
+    oneway_handling           = true,
     side_road_multiplier      = 1,
     turn_penalty              = 2,
     speed_reduction           = 0.8,
