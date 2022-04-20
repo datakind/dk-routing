@@ -18,7 +18,7 @@ with open('build_parameters.yml', 'r') as opened:
             else:
                 break
         if 'vehicle-types' in line:
-            found_types = True            
+            found_types = True
 
 print(desired_vehicles)
 

@@ -1,29 +1,34 @@
-{"zone_configs": [
-    {"optimized_region": ["East"],
-     "Start_Point": ["waste_basket"],
-     "End_Point": ["waste_basket"],
-     "load_time": 2.5,
-     "trips_vehicle_profile": [["3wheeler", 50]],
-     "hours_allowed": 9,
-     "start_time": "6:00AM",
-     "enable_unload": true,
-     "unload_vehicles": [
-         ["3wheeler", 50, "waste_basket", "waste_basket"],
-         ["3wheeler", 50, "waste_basket", "waste_basket"]
-     ],
-     "custom_unload_points": ["East-UNLOAD"]
-  },
-    {"optimized_region": ["West"],
-     "Start_Point": ["waste_basket"],
-     "End_Point": ["West-UNLOAD"],
-     "load_time": 2.5,
-     "trips_vehicle_profile": [["3wheeler", 50]],
-     "enable_unload": false,
-     "unload_vehicles": [],
-     "hours_allowed": 5}
+{
+  "zone_configs": [
+    {
+      "optimized_region": ["East"],
+      "Start_Point": ["waste_basket"],
+      "End_Point": ["waste_basket"],
+      "load_time": 2.5,
+      "trips_vehicle_profile": [["3wheeler", 50]],
+      "hours_allowed": 9,
+      "start_time": "6:00AM",
+      "enable_unload": true,
+      "unload_vehicles": [
+        ["3wheeler", 50, "waste_basket", "waste_basket"],
+        ["3wheeler", 50, "waste_basket", "waste_basket"]
+      ],
+      "custom_unload_points": ["East-UNLOAD"]
+    },
+    {
+      "optimized_region": ["West"],
+      "Start_Point": ["waste_basket"],
+      "End_Point": ["West-UNLOAD"],
+      "load_time": 2.5,
+      "trips_vehicle_profile": [["3wheeler", 50]],
+      "enable_unload": false,
+      "unload_vehicles": [],
+      "hours_allowed": 5
+    }
   ],
-   "node_loader_options": {"num_containers_default": 2},
-   "global_solver_options": {
-       "max_solver_time_min": 2,
-       "fast_run": true}
-      }
+  "node_loader_options": {"num_containers_default": 2},
+  "global_solver_options": {
+    "max_solver_time_min": 2,
+    "fast_run": true
+  }
+}
