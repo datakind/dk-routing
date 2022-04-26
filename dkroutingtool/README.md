@@ -28,7 +28,7 @@ You can also interact with the software in other ways (as follows).
 
 You can execute the routing by typing:
 
-`PYTHONPATH=.:src/py /opt/conda/bin/python src/py/main_application.py --local`
+`PYTHONPATH=./py-lib:src/py /opt/conda/bin/python src/py/main_application.py --local`
 
 From there, you can look at the files written by the application. If you want to copy them from the docker container to your local filesystem, you can do something like this in a second terminal:
 
@@ -62,7 +62,7 @@ data otherwise), you can force an osm update by running the following script (be
 Download `manual_routes_edit.xlsx` file from the docker container, edit as needed and copy back into the docker container.
 Then get into the docker container and run:
 
-`PYTHONPATH=.:src/py /opt/conda/bin/python src/py/main_application.py --local --manual`
+`PYTHONPATH=./py-lib:src/py /opt/conda/bin/python src/py/main_application.py --local --manual`
 
 <br>
 <br>

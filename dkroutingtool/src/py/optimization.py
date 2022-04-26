@@ -23,7 +23,7 @@ import string
 import ujson
 
 import manual_viz
-from file_config import SolutionOutput, ManualEditRouteOutput
+import file_config
 
 import osrmbindings
 
@@ -489,7 +489,7 @@ class ConsolePrinter():
         print('Total Time of all routes: {0}min'.format(total_time))
         return (total_dist, total_time)        
 
-def print_metrics_to_file(route_dict, node_data=None, vehicles=None):
+def print_metrics_to_file(route_dict, output_dir, node_data=None, vehicles=None):
     """
     Prints solution (time, load, dist) to file.
     """
@@ -524,7 +524,7 @@ def print_metrics_to_file(route_dict, node_data=None, vehicles=None):
     plan_output += "Distance of all routes: {0}km\n".format(int(total_dist)/1000)
     plan_output += 'Time of all routes: {0}min\n\n'.format(int(total_time))
 
-    text_file = open(SolutionOutput().get_filename(), "w")
+    text_file = open(file_config.SolutionOutput.get_filename(output_dir), "w")
     text_file.write(plan_output)
     text_file.close()
     
@@ -1268,7 +1268,7 @@ def deconstruct_routes(current_routes, node_data_filtered, data):
     unload_routes = {'fake_routes': fake_routes, 'routes_to_vehicles': routes_to_vehicles, 'starts': starts, 'ends': ends}
     return unload_routes
 
-def main(node_data, config):
+def main(node_data, config, output_dir):
     starting_time = time.time()
     zone_configs = config.get('zone_configs')
     global_solver_options = config.get('global_solver_options')
@@ -1375,7 +1375,7 @@ def main(node_data, config):
         zone_route_map[zone_name] = sorted(this_zone_keys)
 
     #Prnt soln to file
-    print_metrics_to_file(route_dict, node_data, vehicles)
+    print_metrics_to_file(route_dict, output_dir, node_data, vehicles)
 
     routes_for_mapping = {}
 

@@ -3,7 +3,7 @@ from folium.plugins import BeautifyIcon
 import pandas as pd
 import random
 import numpy as np
-from file_config import MapOutput, ManualEditRouteOutput, ManualEditVehicleOutput, ManualMapOutput
+from file_config import InstructionsOutput, MapOutput, ManualMapOutput
 import copy 
 import string
 from geojson import Feature, MultiLineString, FeatureCollection
@@ -333,7 +333,9 @@ def save_nodes_geojson(nodes, manual_editing_mode):
     with open(output_filename, 'w') as output_file:
         geojson_library.dump(out_nodes_geojson, output_file) 
     
-def main(routes_for_mapping, vehicles, zone_route_map=None, route_map_name=None, manual_editing_mode=False):
+def main(routes_for_mapping, vehicles,
+         zone_route_map=None, route_map_name=None,
+         manual_editing_mode=False, output_dir='.'):
     
     # Create and save folium map as an HTML file
     osrm_routes_dict = {}
@@ -376,7 +378,7 @@ def main(routes_for_mapping, vehicles, zone_route_map=None, route_map_name=None,
         parsed = ujson.loads(response)
 
         instructions = osrm_text_instructions.get_instructions(parsed)
-        with open("instructions.txt", "a") as opened:
+        with open(InstructionsOutput().get_filename(output_dir),  "a") as opened:
             #print(instructions)
             opened.write(f"Trip: {route_id}\n")
             for instruction in instructions:
