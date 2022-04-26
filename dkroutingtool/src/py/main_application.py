@@ -70,7 +70,7 @@ def run_routing_from_config(config_file='data/config.json'):
       node_data = build_time_dist_matrix.process_nodes(config['node_loader_options'], config['zone_configs'])
     else:
       node_data = build_time_dist_matrix.process_nodes()
-      error = routing_config.validate_against_node_data(node_data)
+      errors = routing_config.validate_against_node_data(node_data)
       if errors:
           raise ValueError("Node validation against config failed:" + '\n'.join(errors))
 
