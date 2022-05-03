@@ -2,7 +2,8 @@
 Allows for manual editing of routes and subsequent mapping.
 """
 import pandas as pd
-from file_config import SolutionOutput, ManualEditRouteOutput, ManualEditVehicleOutput, ManualSolutionOutput, ManualGPSOutput
+import file_config
+from file_config import ManualEditRouteOutput, ManualEditVehicleOutput, ManualSolutionOutput, ManualGPSOutput
 import visualization
 import optimization
 from build_time_dist_matrix import NodeLoader

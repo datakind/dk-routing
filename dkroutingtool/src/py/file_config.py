@@ -4,7 +4,11 @@ Stores all file config information and some configuration info about input files
 """
 
 import pathlib
+import os
 import ruamel.yaml
+
+# TODO: move the default output dir, but also update upload_results.py
+DEFAULT_OUTPUT_DIR = './'
 
 data_folder = pathlib.Path(".").absolute().parent / 'data'
 data_clean_folder = data_folder / 'gps_data_clean'
@@ -12,6 +16,12 @@ time_dist_folder = data_folder / 'time_and_dist_matrices'
 map_folder = pathlib.Path(".").absolute().parent / 'maps'
 manual_edits_folder = pathlib.Path(".").absolute().parent / 'manual_edits'
 manual_maps_folder = manual_edits_folder / 'maps'
+
+
+def make_output_dir(output_dir=DEFAULT_OUTPUT_DIR):
+    dir_exist = os.path.exists(output_dir)
+    if not dir_exist:
+        os.makedirs(output_dir)
 
 ### Files to read ###
 #Customer GPS Input object can easily be customized here (i.e. files swicthed)
@@ -102,14 +112,17 @@ class TimeDistMatOutput():
             filename_string += '.csv'
         filepath = self.time_dist_folder / filename_string
         return filepath
-        
+
 class SolutionOutput():
-    
-    soln_file = 'solution.txt'
-    
-    def get_filename(self):
-        return self.soln_file
-        
+
+    def get_filename(self, output_dir=DEFAULT_OUTPUT_DIR):
+        return os.path.join(output_dir, 'solution.txt')
+
+class InstructionsOutput():
+
+    def get_filename(self, output_dir=DEFAULT_OUTPUT_DIR):
+        return os.path.join(output_dir, 'instructions.txt')
+
 class MapOutput():
     
     base_filename = 'route_map'

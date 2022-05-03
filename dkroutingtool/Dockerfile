@@ -24,11 +24,11 @@ COPY build_parameters.yml .
 
 COPY build_vehicle_profiles.py .
 
-RUN opt/conda/bin/python build_vehicle_profiles.py
+RUN /opt/conda/bin/python build_vehicle_profiles.py
 
 COPY requirements.txt .
 
-RUN opt/conda/bin/python -m pip install -r requirements.txt
+RUN /opt/conda/bin/python -m pip install -r requirements.txt
 
 RUN conda install cffi==1.12.2
 
@@ -50,13 +50,15 @@ COPY /c_binding_resources/CMakeLists.txt .
 
 COPY /c_binding_resources/python_bindings.cpp example.cpp
 
-RUN cd osrm-backend/example && mv ../../CMakeLists.txt . && mv ../../example.cpp . 
+RUN cd osrm-backend/example && mv ../../CMakeLists.txt . && mv ../../example.cpp .
 
 RUN cp -r pybind11 osrm-backend/example/
 
 RUN cd osrm-backend/example && mkdir build && cd build && cmake .. && make
 
-RUN mv osrm-backend/example/build/osrmbindings.cpython-37m-x86_64-linux-gnu.so .
+RUN mkdir -p py-lib
+
+RUN mv osrm-backend/example/build/osrmbindings.cpython-37m-x86_64-linux-gnu.so py-lib
 
 RUN apt-get update
 
@@ -68,31 +70,7 @@ RUN apt-get -y install nodejs
 
 RUN npm install osrm-text-instructions
 
-COPY /python_scripts/file_config.py .
-
-COPY /python_scripts/build_time_dist_matrix.py .
-
-COPY /python_scripts/main_application.py .
-
-COPY /python_scripts/optimization.py .
-
-COPY /python_scripts/visualization.py .
-
-COPY /python_scripts/schedule.py .
-
-COPY /python_scripts/osrm_text_instructions.py .
-
-COPY /python_scripts/node_data_pickle.py .
-
-COPY /python_scripts/manage_aws.py .
-
-COPY /python_scripts/upload_results.py .
-
-COPY /python_scripts/manual_viz.py .
-
 COPY /local_data/custom_header.yaml data/.
-
-COPY /python_scripts/cloud_context.py .
 
 RUN mkdir maps
 
@@ -100,4 +78,8 @@ RUN mkdir manual_edits
 
 RUN mkdir manual_edits/maps
 
-ENTRYPOINT ["/opt/conda/bin/python", "main_application.py"]
+COPY /src .
+
+RUN export PYTHONPATH="$PYTHONPATH:./py-lib:/src/python"
+
+ENTRYPOINT ["/opt/conda/bin/python", "src/py/main_application.py"]
