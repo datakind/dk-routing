@@ -3,7 +3,7 @@ from folium.plugins import BeautifyIcon
 import pandas as pd
 import random
 import numpy as np
-from file_config import InstructionsOutput, MapOutput, ManualMapOutput
+from file_config import InstructionsOutput, MapOutput, ManualMapOutput, RouteResponseOutput
 import copy 
 import string
 from geojson import Feature, MultiLineString, FeatureCollection
@@ -376,10 +376,11 @@ def main(routes_for_mapping, vehicles,
         response = osrmbindings.route(longitudes, latitudes)
     
         parsed = ujson.loads(response)
+        with open(RouteResponseOutput().get_filename(output_dir),  "a") as json_file_output:
+            ujson.dump(response, json_file_output)
 
         instructions = osrm_text_instructions.get_instructions(parsed)
         with open(InstructionsOutput().get_filename(output_dir),  "a") as opened:
-            #print(instructions)
             opened.write(f"Trip: {route_id}\n")
             for instruction in instructions:
                 opened.write(instruction)

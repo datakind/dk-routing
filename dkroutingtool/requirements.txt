@@ -36,6 +36,7 @@ pycparser==2.19
 Pygments==2.4.2
 pyOpenSSL==19.0.0
 PySocks==1.6.8
+pytest==7.1.2
 python-bond==1.4
 python-dateutil==2.8.0
 pytz==2019.1

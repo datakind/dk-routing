@@ -3,6 +3,8 @@
 TODO: add tests for more syntax erorrs
 TODO: add tests for validate_against_node_data
 """
+import sys
+print(sys.path)
 
 from routing_configuration import RoutingConfig
 
@@ -73,30 +75,25 @@ TEST_BAD_CONFIG2 = {
     ]
 }
 
-
 def test_local_data_routing_config():
-    config = RoutingConfig.from_file('local_data/config.json')
+    config = RoutingConfig.from_file('../../local_data/config.json')
     errors = config.validate()
     assert errors == []
-
 
 def test_simple_config_no_unload():
     config = RoutingConfig(TEST_CONFIG1)
     errors = config.validate()
     assert errors == []
 
-
 def test_simple_config_with_unload():
     config = RoutingConfig(TEST_CONFIG2)
     errors = config.validate()
     assert errors == []
 
-
 def test_bad_config_no_end_point():
     config = RoutingConfig(TEST_BAD_CONFIG1)
     errors = config.validate()
     assert len(errors) > 0
-
 
 def test_bad_config_no_vehicles():
     config = RoutingConfig(TEST_BAD_CONFIG2)

@@ -1,0 +1,46 @@
+Route ID 1, East , 3wheeler, Cap 50:
+ waste_basket -> 5879535781 -> 268166909 -> 7265761759 -> 7822143686 -> 4054032913 -> 4985636121 -> 967714511 -> 7815408085 -> 5931811977 -> 897654574 -> 6445769488 -> UNLOAD-East-UNLOAD-3 -> 4316875944 -> 7265761717 -> 7857077111 -> 4893574386 -> 4413997053 -> 3087466917 -> 8176182650 -> 8269648743 -> 6329919785 -> 8269726062 -> 4859169013 -> 7815408185 -> 4986231523 -> UNLOAD-East-UNLOAD-4 -> 274499413 -> 274499623 -> 274499808 -> 7823279086 -> 7926333297 -> 7926333298 -> 7822671885 -> 6635166686 -> 6635093086 -> 7281483697 -> 6462231387 -> 7793693886 -> 3087464983 -> 3087468660 -> waste_basket 
+Distance of the route: 15.902km
+Load of the route: 140
+Time of the route: 131min
+
+Route ID 2, West , 3wheeler, Cap 50:
+ waste_basket -> 3365391469 -> 2068942499 -> 7778351995 -> 4056395683 -> 995175662 -> 7778324711 -> 7829947085 -> 4472447170 -> 2622751934 -> 1794111136 -> 7820195264 -> 7798179688 -> 267901435 -> 321647302 -> West-UNLOAD 
+Distance of the route: 4.93km
+Load of the route: 45
+Time of the route: 47min
+
+Route ID 3, West , 3wheeler, Cap 50:
+ waste_basket -> 6866125455 -> 5870802785 -> 7780869724 -> 7855286831 -> 8269554470 -> 4364412591 -> 3944391376 -> West-UNLOAD 
+Distance of the route: 2.418km
+Load of the route: 22
+Time of the route: 24min
+
+Route ID 4, West , 3wheeler, Cap 50:
+ waste_basket -> 1712696727 -> West-UNLOAD 
+Distance of the route: 1.799km
+Load of the route: 2
+Time of the route: 7min
+
+Route ID 5, West , 3wheeler, Cap 50:
+ waste_basket -> 1681938981 -> 7787103252 -> 2703619492 -> 5126074527 -> 4352015090 -> 7799420898 -> 3925344273 -> 4384305996 -> 2391493976 -> 6558631438 -> 6718153108 -> 1702431977 -> 267901573 -> 3944391377 -> West-UNLOAD 
+Distance of the route: 6.749km
+Load of the route: 47
+Time of the route: 51min
+
+Route ID 6, West , 3wheeler, Cap 50:
+ waste_basket -> 954710927 -> 7784472485 -> 4105354341 -> 5670111421 -> 1306037369 -> 1662811579 -> 3388800914 -> 5932060633 -> 2680832184 -> 3944391378 -> West-UNLOAD 
+Distance of the route: 3.96km
+Load of the route: 34
+Time of the route: 34min
+
+Route ID 7, West , 3wheeler, Cap 50:
+ waste_basket -> 1306031292 -> 274500242 -> 5663458421 -> West-UNLOAD 
+Distance of the route: 2.234km
+Load of the route: 14
+Time of the route: 13min
+
+Total: 
+Distance of all routes: 37.994km
+Time of all routes: 311min
+
