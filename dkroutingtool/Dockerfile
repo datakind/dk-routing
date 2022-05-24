@@ -78,8 +78,8 @@ RUN mkdir manual_edits
 
 RUN mkdir manual_edits/maps
 
-COPY /src .
+COPY src src
 
-RUN export PYTHONPATH="$PYTHONPATH:./py-lib:/src/python"
+ENV PYTHONPATH "${PYTHONPATH}:./py-lib:/src/python"
 
 ENTRYPOINT ["/opt/conda/bin/python", "src/py/main_application.py"]

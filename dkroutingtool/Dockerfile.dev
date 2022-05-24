@@ -92,14 +92,12 @@ COPY manual.ipynb .
 
 COPY manual.sh .
 
-COPY run_tests.sh .
-
 RUN mkdir -p py-lib
 
 RUN mv osrm-backend/example/build/osrmbindings.cpython-37m-x86_64-linux-gnu.so py-lib/
 
 COPY src src
 
-RUN export PYTHONPATH="$PYTHONPATH:./py-lib:/src/python"
+ENV PYTHONPATH "${PYTHONPATH}:./py-lib:/src/python"
 
 CMD ["/opt/conda/bin/python", "src/py/main_application.py", "--local"]

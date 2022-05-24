@@ -3,9 +3,6 @@
 TODO: add tests for more syntax erorrs
 TODO: add tests for validate_against_node_data
 """
-import sys
-print(sys.path)
-
 from routing_configuration import RoutingConfig
 
 TEST_CONFIG1 = {

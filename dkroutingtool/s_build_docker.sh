@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-docker system prune --force
-docker build -f Dockerfile.osrm -t osrm-base .
 
+# docker system prune --force
+
+docker build -f Dockerfile.osrm -t osrm-base .
 FILEPATH=$(yq e '.Build.osm-data.geofabrik-url' build_parameters.yml)
 FILENAME=$(basename $FILEPATH)
 SHORTFILENAME=${FILENAME%%.*}
