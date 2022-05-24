@@ -118,6 +118,12 @@ class SolutionOutput():
     def get_filename(self, output_dir=DEFAULT_OUTPUT_DIR):
         return os.path.join(output_dir, 'solution.txt')
 
+class RouteResponseOutput():
+
+    def get_filename(self, output_dir=DEFAULT_OUTPUT_DIR):
+        return os.path.join(output_dir, 'route_response.json')
+
+
 class InstructionsOutput():
 
     def get_filename(self, output_dir=DEFAULT_OUTPUT_DIR):

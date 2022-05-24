@@ -1,6 +1,7 @@
 """Capacitated Vehicle Routing Problem with Time Windows (CVRPTW).
 """
 from __future__ import print_function
+from attr import attrs, attrib
 import json
 import pandas as pd
 import numpy as np
@@ -42,6 +43,12 @@ reoptimize_time_factor = 0.2 #Amount of time allowed to reoptimize the subnodes 
 max_time_horizon = 24*60*60
 
 verbose = False
+
+@attrs
+class OptimizationSolution(object):
+    route_dict = attrib(type=dict)
+    vehicles = attrib(type=dict)
+    zone_route_map = attrib(type=dict)
 
 def clean_up_time(hour):
     hour = hour.strip()
@@ -1268,20 +1275,23 @@ def deconstruct_routes(current_routes, node_data_filtered, data):
     unload_routes = {'fake_routes': fake_routes, 'routes_to_vehicles': routes_to_vehicles, 'starts': starts, 'ends': ends}
     return unload_routes
 
-def main(node_data, config, output_dir):
-    starting_time = time.time()
+def solve(node_data, config: str):
+    """Solve the route for each zone.
+
+    Args:
+        config: json route config.
+
+    """
     zone_configs = config.get('zone_configs')
     global_solver_options = config.get('global_solver_options')
-    
     prev_route_dict = None
     prev_vehicles = None
     prev_keys = set([])
     zone_route_map = {}
-    
     #for each zone configuration
     for this_config in zone_configs:
         solver_options = {**this_config.get('solver_options', {}), **global_solver_options}
-        if this_config.get('enable_unload'):     
+        if this_config.get('enable_unload'):
             all_start_end_options = []
             for v in this_config['unload_vehicles']:
                 all_start_end_options.extend(v[2:])
@@ -1290,17 +1300,17 @@ def main(node_data, config, output_dir):
             all_start_end_options_dict['zone'] = this_config['optimized_region']
             node_data_filtered = node_data.filter_nodedata(all_start_end_options_dict, filter_name_str='multiple_sample')
             starts_ends = all_start_end_options
-            
+
         else:
             #filter for desired zone and depot node
             node_data_filtered = node_data.filter_nodedata(
-                                                {'zone': this_config['optimized_region'],
-                                                 'start': this_config['Start_Point']
-                                                 ,'end': this_config['End_Point']
-                                                 }, filter_name_str='multiple_sample')
+                {'zone': this_config['optimized_region'],
+                 'start': this_config['Start_Point']
+                    ,'end': this_config['End_Point']
+                 }, filter_name_str='multiple_sample')
 
             starts_ends = [this_config['Start_Point'][0], this_config['End_Point'][0]]
-        
+
         supernodes = []
         if clustering_agglomeration:
             original_node_data_filtered = copy.deepcopy(node_data_filtered)
@@ -1309,28 +1319,28 @@ def main(node_data, config, output_dir):
             if this_config['enable_unload']:
                 first_vehicle_profile = this_config['unload_vehicles'][0][0]
                 cluster_capacity = this_config['unload_vehicles'][0][1]
-                
+
             node_data_filtered, supernodes, fictional_points = produce_agglomerations(node_data_filtered, starts_ends, current_profile=first_vehicle_profile, capacity=cluster_capacity)
-        
+
         #create vehicles and data problem
         vehicles = create_vehicle(node_data_filtered,this_config)
         data = DataProblem(node_data_filtered,vehicles,this_config, node_clusters = supernodes)
-        
+
         if (sum(data.demands) > sum([v.capacity for v in vehicles])) and not this_config['enable_unload']:
             print('number of vehicles specified is not enough', sum(data.demands), sum([v.capacity for v in vehicles]))
             continue
-            
+
         #run optimal route script
         assignment, manager, routing =  get_optimal_route(data,vehicles, **solver_options)
 
         #printer = ConsolePrinter(data, routing, assignment, manager)
         #printer.print()
         #return routing, assignment, manager, data
-        
+
         if clustering_agglomeration:
             current_routes = get_routes(routing, data, assignment, manager)
             full_routes = get_full_routes(current_routes, supernodes, fictional_points)
-            
+
             node_data_filtered = original_node_data_filtered
             vehicles = create_vehicle(node_data_filtered,this_config)
             data = DataProblem(node_data_filtered, vehicles, this_config)
@@ -1338,7 +1348,7 @@ def main(node_data, config, output_dir):
             if assignment is None:
                 print("Clustered version did not work, running without it")
                 assignment, manager, routing =  get_optimal_route(data, vehicles, **solver_options)
-        
+
         if resequencing:
             resequence_time = time.clock()
             current_routes = get_routes(routing, data, assignment, manager)
@@ -1346,7 +1356,7 @@ def main(node_data, config, output_dir):
                 unload_routes = deconstruct_routes(current_routes, node_data_filtered, data)
                 routes_all = produce_temporary_routes(current_routes, [vehicle._osrm_profile for vehicle in vehicles], data, unload_routes = unload_routes)
                 new_assignment = resequence(node_data_filtered, data, routing, routes_all, current_routes, [vehicle._osrm_profile for vehicle in vehicles], unload_routes = unload_routes)
-                
+
             else:
                 routes_all = produce_temporary_routes(current_routes, [vehicle._osrm_profile for vehicle in vehicles], data)
                 new_assignment = resequence(node_data_filtered, data, routing, routes_all, current_routes, [vehicle._osrm_profile for vehicle in vehicles])
@@ -1354,11 +1364,10 @@ def main(node_data, config, output_dir):
                 print('Reassigned')
                 assignment = new_assignment
             print(f'Took {time.clock() - resequence_time} seconds to resequence')
-        
+
         printer = ConsolePrinter(data, routing, assignment, manager)
         printer.print()
-    
-        
+
         #Reorganize output into a route_dict, also filter out unused routes and combine w/ prev. configs
         route_dict, vehicles = create_route_dict(assignment, manager, routing, data, node_data_filtered, vehicles, prev_route_dict, prev_vehicles)
         prev_route_dict = route_dict
@@ -1373,12 +1382,24 @@ def main(node_data, config, output_dir):
             zone_name += region
         zone_name = zone_name.replace(" ", "")
         zone_route_map[zone_name] = sorted(this_zone_keys)
+    return OptimizationSolution(
+        route_dict=route_dict,
+        vehicles=vehicles,
+        zone_route_map=zone_route_map
+    )
+
+def main(node_data, config, output_dir):
+    starting_time = time.time()
+
+    # Solve the routing problem.
+    solution = solve(node_data, config)
 
     #Prnt soln to file
-    print_metrics_to_file(route_dict, output_dir, node_data, vehicles)
+    print_metrics_to_file(solution.route_dict, output_dir, node_data, solution.vehicles)
 
     routes_for_mapping = {}
-
+    route_dict = solution.route_dict
+    vehicles = solution.vehicles
     for vehicle_id in range(len(route_dict)):
         current_route = []
         for i, item in enumerate(route_dict[vehicle_id]["route"]):
@@ -1394,8 +1415,8 @@ def main(node_data, config, output_dir):
         return {str(k+1): my_dict[k] for k in sorted(my_dict.keys())}
     routes_for_mapping = index_up_dict(routes_for_mapping)
     vehicles = index_up_dict(vehicles)
-    for k in zone_route_map:
-        zone_route_map[str(k)] = [str(i+1) for i in zone_route_map[k]]
+    for k in solution.zone_route_map:
+        solution.zone_route_map[str(k)] = [str(i+1) for i in solution.zone_route_map[k]]
         
     if config is not None:
         ### First - check if we have any unload routes - as we want to segment them so they are easy to inspect
@@ -1414,7 +1435,7 @@ def main(node_data, config, output_dir):
 
         zones_to_segment = []
         for zone in config['zone_configs']:
-            ref_zone_route_map = copy.deepcopy(zone_route_map)
+            ref_zone_route_map = copy.deepcopy(solution.zone_route_map)
             zone_routes = []
 
 
@@ -1432,14 +1453,14 @@ def main(node_data, config, output_dir):
                         zone_routes.append(new_label)
                     del routes_for_mapping[zone_route]
                     del vehicles[zone_route]
-                    zone_route_map[zone_to_segment] = zone_routes
+                    solution.zone_route_map[zone_to_segment] = zone_routes
                     
     #Create output for manual route editing option
-    manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, zone_route_map)
+    manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, solution.zone_route_map)
     all_zones = [i['optimized_region'] for i in config['zone_configs']]
     run_duration = strftime("%Mmin %Ssec", gmtime(time.time()-starting_time))
     print('\n')
     print(80*"#")
     print(f'Optmization Complete:\n Took {run_duration} to optimize {all_zones}')
     print(80*"#",'\n')
-    return routes_for_mapping, vehicles, zone_route_map 
+    return routes_for_mapping, vehicles, solution.zone_route_map
