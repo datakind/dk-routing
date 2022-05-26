@@ -7,6 +7,7 @@ Config.json files shoudl contain
 
 example file is in local_data/config.json
 """
+import sys
 import json
 from typing import List
 
@@ -76,7 +77,14 @@ class RoutingConfig:
             for z in zc['optimized_region']:
                 record_count = node_data.filter_nodedata({'zone': z}).all_clean_nodes.shape[0]
                 if record_count == 0:
-                    errors.append((f"Data Error: No Customers in Zone {z}, perhaps this is an error. Stopping Run! "))
+                    zc['optimized_region'].remove(z)
+                    print(f"Data check: No customers in zone {z}, perhaps this is an error. The zone will not be computed")
+                    
+        # Eliminating empty zone configs, as a zone config can cover many zones but they may all get removed previously 
+        for zc in config['zone_configs']:
+          if len(zc['optimized_region']) == 0:
+            config['zone_configs'].remove(zc)
+
         return errors
 
     def validate_against_node_data(self, node_data: 'NodeData') -> List[str]:
@@ -87,7 +95,7 @@ class RoutingConfig:
         Returns:
           List of errors or empty list if none.
         """
-        errors = self.verify_all_zones_have_customers(config, node_data)
+        errors = self._verify_all_zones_have_customers(node_data)
         return errors
 
     def validate(self) -> List[str]:

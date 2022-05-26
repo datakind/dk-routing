@@ -69,9 +69,10 @@ def run_routing_from_config(config_file='data/config.json', output_dir=file_conf
         node_data = build_time_dist_matrix.process_nodes(config['node_loader_options'], config['zone_configs'])
     else:
         node_data = build_time_dist_matrix.process_nodes()
-        errors = routing_config.validate_against_node_data(node_data)
-        if errors:
-            raise ValueError("Node validation against config failed:" + '\n'.join(errors))
+    
+    errors = routing_config.validate_against_node_data(node_data)
+    if errors:
+        raise ValueError("Node validation against config failed:" + '\n'.join(errors))
 
     print(f' *   Starting Model Run at {time.strftime("%H:%M:%S")} (UTC)')
     # Check if solver options are specified
