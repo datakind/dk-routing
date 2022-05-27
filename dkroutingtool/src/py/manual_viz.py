@@ -24,9 +24,11 @@ def write_manual_output(node_data, routes_for_mapping, vehicles, zone_route_map)
         demands = []
         additional_info = []
         node_i = 1
+
         #for each route in that zone
-        for route_id in sorted(route_indices):
+        for formula_index, route_id in enumerate(sorted(route_indices)):
             route = routes_for_mapping[route_id]
+            
             #for each node in that route
             for route_i, node in enumerate(route):
                 node_name.append(node[1][0])
@@ -41,6 +43,15 @@ def write_manual_output(node_data, routes_for_mapping, vehicles, zone_route_map)
                 else:
                     node_num.append(node_i)
                     node_i += 1
+
+            #formulas
+            node_name.insert(formula_index,f'=COUNTIF(A:A,"{route_id}")-2')
+            route_num.insert(formula_index,'Summary')
+            node_num.insert(formula_index,f'Route {route_id}')
+            loads.insert(formula_index,'')
+            demands.insert(formula_index, f'=SUMIFS(E:E,A:A,"{route_id}",E:E, ">0")')
+            additional_info.insert(formula_index,'')
+
         #make a df for the zone
         zone_df = pd.DataFrame({'route': route_num, 'node_num':node_num, 
                     'node_name': node_name, 'load': loads, 'demands': demands,
@@ -173,7 +184,9 @@ def main():
         #Add the zone to the zone-to-route tracking map
         zone_route_map[sheet] = []
         #iterate through the df to create routes_for_mapping
-        for index, row in manual_routes.parse(sheet).iterrows():
+        manual_dataframe = manual_routes.parse(sheet)
+        manual_dataframe = manual_dataframe[manual_dataframe['route'] != 'Summary']
+        for index, row in manual_dataframe.iterrows():
             row_key = str(row['route'])
             #if route doesn't exist in routes_for_mapping, add it
             if row_key not in routes_for_mapping.keys():
