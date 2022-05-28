@@ -15,6 +15,8 @@ import osrmbindings
 import osrm_text_instructions
 import os
 
+colorList = ["red","blue","green","orange","purple","yellow","black","pink"]
+
 osrm_filepath = os.environ['osm_filename']
 def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route_names=None, filenamePreString=None, filenamePostString=None, focal_points = 'first_all'):
     """Plots vehicles routes on HTML map
@@ -76,8 +78,7 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
     
     # PolyLine accepts a list of (x,y) tuples, where the ith and (ith+1) coordinate
     # are connected by a line segment on the map
-    colorList = ["red","cyan","green","orange","purple","yellow","black","indigo"]
-    colorList_for_mapping = random.sample(colorList,len(colorList)-1)
+    
     #create a map of vehicle id -> actual vehicle
     color_map = {}
     new_route_names = []

@@ -1,8 +1,8 @@
 """Capacitated Vehicle Routing Problem with Time Windows (CVRPTW).
 """
 from __future__ import print_function
+
 from attr import attrs, attrib
-import json
 import pandas as pd
 import numpy as np
 from six.moves import xrange
@@ -25,6 +25,7 @@ import ujson
 
 import manual_viz
 import file_config
+from visualization import colorList
 
 import osrmbindings
 
@@ -502,7 +503,8 @@ def print_metrics_to_file(route_dict, output_dir, node_data=None, vehicles=None)
     """
     plan_output = ''
     for route_id, route in route_dict.items():
-        plan_output += 'Route ID {0}'.format(route_id+1)
+        display_name = route['display_name']
+        plan_output += f'Route ID {display_name}'
         if vehicles != None:
             plan_output += ', ' + vehicles[route_id].name + ':\n'
         else:
@@ -835,8 +837,6 @@ def create_route_dict(assignment, manager, routing, data, nodedata, vehicles, ro
     total_dist = 0
     filtered_veh = {}
     filtered_route_dict = {}
-    new_route_dict = {}
-    new_vehicles = {}
     
     time_dimension = routing.GetDimensionOrDie('Time')
     
@@ -934,7 +934,6 @@ def resequence(node_data, data, routing, routes_all, original_routes, vehicle_pr
     per_route_nodes = dict()
     
     if unload_routes is not None:
-        true_routes = copy.deepcopy(original_routes)
         original_routes = unload_routes['fake_routes']
         vehicle_indices = unload_routes['routes_to_vehicles']
         profiles = [vehicle_profiles[index] for index in vehicle_indices]
@@ -1107,7 +1106,6 @@ def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profil
     fictional_points += starts_ends_indices
     
     new_distances = profile_matrix[fictional_points,:][:,fictional_points]
-    new_names = names[fictional_points]
     new_buckets += [np.nan for _ in starts_ends_indices]
 
     node_data_filtered.veh_time_osrmmatrix_dict[profile].time_dist_mat = new_distances
@@ -1207,7 +1205,6 @@ def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_pr
         print("Sprawling node agglomeration results", len(supernodes), len(names), sum([len(supernode) for supernode in supernodes]), [len(supernode) for supernode in supernodes])
     
     new_distances = profile_matrix[fictional_points,:][:,fictional_points]
-    new_names = names[fictional_points]
     new_buckets += [np.nan for _ in starts_ends_indices]
     new_time_windows += [np.nan for _ in starts_ends_indices]
 
@@ -1378,15 +1375,35 @@ def solve(node_data, config: str):
         this_zone_keys = curr_keys - prev_keys
         prev_keys = curr_keys
         zone_name = ''
-        for region_i, region in enumerate(this_config['optimized_region']):
+        for region in this_config['optimized_region']:
             zone_name += region
         zone_name = zone_name.replace(" ", "")
         zone_route_map[zone_name] = sorted(this_zone_keys)
+
+    route_dict = add_display_name(route_dict)
+
     return OptimizationSolution(
         route_dict=route_dict,
         vehicles=vehicles,
         zone_route_map=zone_route_map
     )
+
+def add_display_name(route_dict):
+    '''Adds a field to be used in the manual edits documents, solution.txt, and maps produced in
+    order to be more flexible in how we display routes as opposed to using their IDs.'''
+    new_route_dict = copy.deepcopy(route_dict)
+
+    for key in new_route_dict:
+        new_route_dict[key]['display_name'] = f'{colorList[key % len(colorList)]}-{key+1}'
+    
+    return new_route_dict
+
+def reorder_route_dict(route_dict):
+    '''Tries to keep a reliable ordering, from North to South given the average gps 
+    locations of the nodes on the route.
+    Not used yet'''
+    print(route_dict)
+    return route_dict
 
 def main(node_data, config, output_dir):
     starting_time = time.time()
@@ -1409,10 +1426,12 @@ def main(node_data, config, output_dir):
         
         routes_for_mapping[vehicle_id] = current_route
     
+    display_dict = {str(key+1) : route_dict[key]['display_name'] for key in route_dict}
+
     # Index up everything for visualizaiton purposes 
     def index_up_dict(my_dict):
-        tmp = {}
         return {str(k+1): my_dict[k] for k in sorted(my_dict.keys())}
+
     routes_for_mapping = index_up_dict(routes_for_mapping)
     vehicles = index_up_dict(vehicles)
     for k in solution.zone_route_map:
@@ -1433,7 +1452,6 @@ def main(node_data, config, output_dir):
             all_routes.append(sub_route)
             return all_routes
 
-        zones_to_segment = []
         for zone in config['zone_configs']:
             ref_zone_route_map = copy.deepcopy(solution.zone_route_map)
             zone_routes = []
@@ -1463,4 +1481,9 @@ def main(node_data, config, output_dir):
     print(80*"#")
     print(f'Optmization Complete:\n Took {run_duration} to optimize {all_zones}')
     print(80*"#",'\n')
+
+    print(routes_for_mapping)
+    print(vehicles)
+    print(solution.zone_route_map)
+
     return routes_for_mapping, vehicles, solution.zone_route_map
