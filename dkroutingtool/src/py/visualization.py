@@ -1,11 +1,8 @@
 import folium
 from folium.plugins import BeautifyIcon
 import pandas as pd
-import random
 import numpy as np
 from file_config import InstructionsOutput, MapOutput, ManualMapOutput, RouteResponseOutput
-import copy 
-import string
 from geojson import Feature, MultiLineString, FeatureCollection
 import geojson as geojson_library
 import ujson
@@ -83,11 +80,11 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
     color_map = {}
     new_route_names = []
     if route_names != None:
-        uniq_color_map = {}
         j = 0
         for route_id, route_name in route_names.items():
             new_route_names.append("Trip {}, {}/{}".format(route_id, route_name, nodes[route_id][0][2][0]))
-            color_map[j] = colorList[j % len(colorList)]
+            color_map[j] = route_id.split('-')[0]
+            #color_map[j] = colorList[j % len(colorList)]
             j += 1
     else:
         for i in range(len(routes)):
@@ -248,43 +245,13 @@ def createVisObject(coordArray):
                 “properties”: {{}}}},              
                 """.format(Node2Coords)
             )
-
-def create_geojson(assignment, routing, data):
-    """Creates geojson object from routing assignment
-    writes js file with geojson for Leaflet map (or any other js based map)
-    returns geojson dict object with feature collection of MultiLineString
-            each MultiLineString is a vehicle route
-    """
-    route_dict = create_route_dict(assignment, routing, data)
-
-    feature_collection_list = []
-
-    # Add MultiLineString geometries to feature collection
-    for vehicle_id in range(data.num_vehicles):
-        route_coordinates = [(route_dict[vehicle_id]["route"][i][0],
-                       route_dict[vehicle_id]["route"][i + 1][0]) for i in
-                       range(len(route_dict[vehicle_id]["route"]) - 1)]
-
-        route_geometry = MultiLineString(route_coordinates)  # type: MultiLineString
-        route_feature = Feature(geometry=route_geometry, id=vehicle_id)
-        feature_collection_list.append(route_feature)
-    feature_collection = FeatureCollection(feature_collection_list)
-
-    geojson = feature_collection # adding separate variable in case other features added
-
-    geojson_str = json.dumps(geojson) # creates json compact (indent can be added if needed)
-
-    output_filename = 'route_geojson.js'
-    with open(output_filename, 'w') as output_file:
-        output_file.write('var dataset = {};'.format(geojson_str))
-
-    return(geojson)
    
 def custom_sort(to_sort):
         to_sort = list(to_sort)
         if isinstance(to_sort[0], int):
             return sorted(to_sort)
         else:
+            return sorted(to_sort)
             return sorted(to_sort, key=lambda x: (int(x.split('-')[0]), x.split('-')[1]) if '-' in x else (int(x), 0))
 
 def save_geojson(mapping_routes, manual_editing_mode):

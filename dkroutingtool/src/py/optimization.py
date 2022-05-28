@@ -1472,7 +1472,45 @@ def main(node_data, config, output_dir):
                     del routes_for_mapping[zone_route]
                     del vehicles[zone_route]
                     solution.zone_route_map[zone_to_segment] = zone_routes
-                    
+
+    new_routes_for_mapping = {}
+    new_vehicles = {}
+    for key in routes_for_mapping:
+        if '-' in key:
+            number_key = key.split('-')[0]
+            second_part = key.split('-')[1]
+        else:
+            number_key = key
+            second_part = ''
+        
+        new_key = display_dict[number_key]
+        if second_part != '':
+            new_key = f'{new_key}-{second_part}'
+
+        new_routes_for_mapping[new_key] = routes_for_mapping[key]
+        new_vehicles[new_key] = vehicles[key]
+    
+    routes_for_mapping = new_routes_for_mapping
+    vehicles = new_vehicles
+
+    for key in solution.zone_route_map:
+        new_routes = []
+        for route in solution.zone_route_map[key]:
+            if '-' in route:
+                number_key = route.split('-')[0]
+                second_part = route.split('-')[1]
+            else:
+                number_key = route
+                second_part = ''
+            
+            new_key = display_dict[number_key]
+            if second_part != '':
+                new_key = f'{new_key}-{second_part}'
+            
+            new_routes.append(new_key)
+        solution.zone_route_map[key] = new_routes
+            
+
     #Create output for manual route editing option
     manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, solution.zone_route_map)
     all_zones = [i['optimized_region'] for i in config['zone_configs']]
@@ -1482,8 +1520,6 @@ def main(node_data, config, output_dir):
     print(f'Optmization Complete:\n Took {run_duration} to optimize {all_zones}')
     print(80*"#",'\n')
 
-    print(routes_for_mapping)
-    print(vehicles)
-    print(solution.zone_route_map)
+  
 
     return routes_for_mapping, vehicles, solution.zone_route_map
