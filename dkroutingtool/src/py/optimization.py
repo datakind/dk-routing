@@ -43,6 +43,9 @@ reoptimize_time_factor = 0.2 #Amount of time allowed to reoptimize the subnodes 
 #max_time_horizon = 28800
 max_time_horizon = 24*60*60
 
+color_naming = True
+north_south_ordering = True
+
 verbose = False
 
 @attrs
@@ -503,8 +506,12 @@ def print_metrics_to_file(route_dict, output_dir, node_data=None, vehicles=None)
     """
     plan_output = ''
     for route_id, route in route_dict.items():
-        display_name = route['display_name']
-        plan_output += f'Route ID {display_name}'
+        if color_naming:
+            display_name = route['display_name']
+            plan_output += f'Route ID {display_name}'
+        else:
+            plan_output += f'Route ID {route_id}'
+
         if vehicles != None:
             plan_output += ', ' + vehicles[route_id].name + ':\n'
         else:
@@ -1380,8 +1387,6 @@ def solve(node_data, config: str):
         zone_name = zone_name.replace(" ", "")
         zone_route_map[zone_name] = sorted(this_zone_keys)
 
-    route_dict = add_display_name(route_dict)
-
     return OptimizationSolution(
         route_dict=route_dict,
         vehicles=vehicles,
@@ -1411,13 +1416,44 @@ def main(node_data, config, output_dir):
     # Solve the routing problem.
     solution = solve(node_data, config)
 
+    if north_south_ordering:
+        averages = {}
+        
+        for key in solution.route_dict:
+            route_coords = solution.route_dict[key]['route']
+            average_point = np.zeros(shape=(2,))
+            for point, _ in route_coords:
+                average_point += point
+            average_point /= len(route_coords)
+            averages[key] = average_point[0]
+        averages = pd.Series(averages).sort_values(ascending=False)
+
+        reordered_routes = {}
+        reordered_vehicles = {}
+        reordered_map = {}
+        for new_index, old_index in enumerate(averages.index):
+            reordered_routes[new_index] = solution.route_dict[old_index]
+            reordered_vehicles[new_index] = solution.vehicles[old_index]
+            reordered_map[old_index] = new_index
+
+        for key in solution.zone_route_map:
+            solution.zone_route_map[key] = [reordered_map[index] for index in solution.zone_route_map[key]]
+
+        solution_route_dict = reordered_routes
+        solution_vehicles = reordered_vehicles
+    else:
+        solution_route_dict = solution.route_dict
+        solution_vehicles = solution.vehicles
+
+    solution_route_dict = add_display_name(solution_route_dict)
+
     #Prnt soln to file
-    print_metrics_to_file(solution.route_dict, output_dir, node_data, solution.vehicles)
+    print_metrics_to_file(solution_route_dict, output_dir, node_data, solution_vehicles)
 
     routes_for_mapping = {}
-    route_dict = solution.route_dict
-    vehicles = solution.vehicles
-    for vehicle_id in range(len(route_dict)):
+    route_dict = solution_route_dict
+    vehicles = solution_vehicles
+    for vehicle_id in route_dict:
         current_route = []
         for i, item in enumerate(route_dict[vehicle_id]["route"]):
             cust_popup = [node_data.get_names_by_index(route_dict[vehicle_id]["indexed_route"][i]),
@@ -1430,7 +1466,7 @@ def main(node_data, config, output_dir):
 
     # Index up everything for visualizaiton purposes 
     def index_up_dict(my_dict):
-        return {str(k+1): my_dict[k] for k in sorted(my_dict.keys())}
+        return {str(k+1): my_dict[k] for k in my_dict}
 
     routes_for_mapping = index_up_dict(routes_for_mapping)
     vehicles = index_up_dict(vehicles)
@@ -1473,43 +1509,44 @@ def main(node_data, config, output_dir):
                     del vehicles[zone_route]
                     solution.zone_route_map[zone_to_segment] = zone_routes
 
-    new_routes_for_mapping = {}
-    new_vehicles = {}
-    for key in routes_for_mapping:
-        if '-' in key:
-            number_key = key.split('-')[0]
-            second_part = key.split('-')[1]
-        else:
-            number_key = key
-            second_part = ''
-        
-        new_key = display_dict[number_key]
-        if second_part != '':
-            new_key = f'{new_key}-{second_part}'
-
-        new_routes_for_mapping[new_key] = routes_for_mapping[key]
-        new_vehicles[new_key] = vehicles[key]
-    
-    routes_for_mapping = new_routes_for_mapping
-    vehicles = new_vehicles
-
-    for key in solution.zone_route_map:
-        new_routes = []
-        for route in solution.zone_route_map[key]:
-            if '-' in route:
-                number_key = route.split('-')[0]
-                second_part = route.split('-')[1]
+    if color_naming:
+        new_routes_for_mapping = {}
+        new_vehicles = {}
+        for key in routes_for_mapping:
+            if '-' in key:
+                number_key = key.split('-')[0]
+                second_part = key.split('-')[1]
             else:
-                number_key = route
+                number_key = key
                 second_part = ''
             
             new_key = display_dict[number_key]
             if second_part != '':
                 new_key = f'{new_key}-{second_part}'
-            
-            new_routes.append(new_key)
-        solution.zone_route_map[key] = new_routes
-            
+
+            new_routes_for_mapping[new_key] = routes_for_mapping[key]
+            new_vehicles[new_key] = vehicles[key]
+        
+        routes_for_mapping = new_routes_for_mapping
+        vehicles = new_vehicles
+
+        for key in solution.zone_route_map:
+            new_routes = []
+            for route in solution.zone_route_map[key]:
+                if '-' in route:
+                    number_key = route.split('-')[0]
+                    second_part = route.split('-')[1]
+                else:
+                    number_key = route
+                    second_part = ''
+                
+                new_key = display_dict[number_key]
+                if second_part != '':
+                    new_key = f'{new_key}-{second_part}'
+                
+                new_routes.append(new_key)
+            solution.zone_route_map[key] = new_routes
+                
 
     #Create output for manual route editing option
     manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, solution.zone_route_map)

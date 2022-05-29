@@ -1,3 +1,4 @@
+from turtle import fillcolor
 import folium
 from folium.plugins import BeautifyIcon
 import pandas as pd
@@ -12,7 +13,7 @@ import osrmbindings
 import osrm_text_instructions
 import os
 
-colorList = ["red","blue","green","orange","purple","yellow","black","pink"]
+colorList = sorted(["red","blue","green","orange","purple","yellow","black","pink"])
 
 osrm_filepath = os.environ['osm_filename']
 def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route_names=None, filenamePreString=None, filenamePostString=None, focal_points = 'first_all'):
@@ -98,9 +99,8 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
         for idx, key in enumerate(nodes_keys):
             ic = folium.plugins.BeautifyIcon(border_color=color_map[idx], text_color='black', number=idx,
                                              icon_shape='marker')
-
-            folium.PolyLine(routes[key], color=color_map[idx], opacity=0.6).add_to(master_layer)
-
+            folium.PolyLine(routes[key], color=color_map[idx], opacity=0.6, weight=5).add_to(master_layer)
+            
             # If the first and last point in each segment/route is a focal point
             if focal_points == 'first_all':
                 for customer in nodes[nodes_keys[idx]][1:-1]:
@@ -122,8 +122,8 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
         else:  # in individual maps turned on by default
             feature_group = folium.FeatureGroup(name = new_route_names[idx], show= False)
 
-
-        folium.PolyLine(routes[key], color=color_map[idx], opacity=0.6).add_to(feature_group)
+        folium.PolyLine(routes[key], color='black', opacity=0.7, weight=5.6).add_to(feature_group) #outline
+        folium.PolyLine(routes[key], color=color_map[idx], opacity=1.0, weight=5).add_to(feature_group)
         #If the first and last point in each segment/route is a focal point
         if focal_points == 'first_all':
             nodes_keys = custom_sort(list(nodes.keys()))
