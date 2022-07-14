@@ -1,8 +1,8 @@
 """Capacitated Vehicle Routing Problem with Time Windows (CVRPTW).
 """
 from __future__ import print_function
+
 from attr import attrs, attrib
-import json
 import pandas as pd
 import numpy as np
 from six.moves import xrange
@@ -25,6 +25,7 @@ import ujson
 
 import manual_viz
 import file_config
+from visualization import colorList
 
 import osrmbindings
 
@@ -41,6 +42,9 @@ reoptimize_time_factor = 0.2 #Amount of time allowed to reoptimize the subnodes 
 
 #max_time_horizon = 28800
 max_time_horizon = 24*60*60
+
+color_naming = True
+north_south_ordering = True
 
 verbose = False
 
@@ -502,7 +506,12 @@ def print_metrics_to_file(route_dict, output_dir, node_data=None, vehicles=None)
     """
     plan_output = ''
     for route_id, route in route_dict.items():
-        plan_output += 'Route ID {0}'.format(route_id+1)
+        if color_naming:
+            display_name = route['display_name']
+            plan_output += f'Route ID {display_name}'
+        else:
+            plan_output += f'Route ID {route_id}'
+
         if vehicles != None:
             plan_output += ', ' + vehicles[route_id].name + ':\n'
         else:
@@ -835,8 +844,6 @@ def create_route_dict(assignment, manager, routing, data, nodedata, vehicles, ro
     total_dist = 0
     filtered_veh = {}
     filtered_route_dict = {}
-    new_route_dict = {}
-    new_vehicles = {}
     
     time_dimension = routing.GetDimensionOrDie('Time')
     
@@ -934,7 +941,6 @@ def resequence(node_data, data, routing, routes_all, original_routes, vehicle_pr
     per_route_nodes = dict()
     
     if unload_routes is not None:
-        true_routes = copy.deepcopy(original_routes)
         original_routes = unload_routes['fake_routes']
         vehicle_indices = unload_routes['routes_to_vehicles']
         profiles = [vehicle_profiles[index] for index in vehicle_indices]
@@ -1107,7 +1113,6 @@ def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profil
     fictional_points += starts_ends_indices
     
     new_distances = profile_matrix[fictional_points,:][:,fictional_points]
-    new_names = names[fictional_points]
     new_buckets += [np.nan for _ in starts_ends_indices]
 
     node_data_filtered.veh_time_osrmmatrix_dict[profile].time_dist_mat = new_distances
@@ -1207,7 +1212,6 @@ def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_pr
         print("Sprawling node agglomeration results", len(supernodes), len(names), sum([len(supernode) for supernode in supernodes]), [len(supernode) for supernode in supernodes])
     
     new_distances = profile_matrix[fictional_points,:][:,fictional_points]
-    new_names = names[fictional_points]
     new_buckets += [np.nan for _ in starts_ends_indices]
     new_time_windows += [np.nan for _ in starts_ends_indices]
 
@@ -1378,15 +1382,33 @@ def solve(node_data, config: str):
         this_zone_keys = curr_keys - prev_keys
         prev_keys = curr_keys
         zone_name = ''
-        for region_i, region in enumerate(this_config['optimized_region']):
+        for region in this_config['optimized_region']:
             zone_name += region
         zone_name = zone_name.replace(" ", "")
         zone_route_map[zone_name] = sorted(this_zone_keys)
+
     return OptimizationSolution(
         route_dict=route_dict,
         vehicles=vehicles,
         zone_route_map=zone_route_map
     )
+
+def add_display_name(route_dict):
+    '''Adds a field to be used in the manual edits documents, solution.txt, and maps produced in
+    order to be more flexible in how we display routes as opposed to using their IDs.'''
+    new_route_dict = copy.deepcopy(route_dict)
+
+    for key in new_route_dict:
+        new_route_dict[key]['display_name'] = f'{colorList[key % len(colorList)]}-{key+1}'
+    
+    return new_route_dict
+
+def reorder_route_dict(route_dict):
+    '''Tries to keep a reliable ordering, from North to South given the average gps 
+    locations of the nodes on the route.
+    Not used yet'''
+    print(route_dict)
+    return route_dict
 
 def main(node_data, config, output_dir):
     starting_time = time.time()
@@ -1394,13 +1416,44 @@ def main(node_data, config, output_dir):
     # Solve the routing problem.
     solution = solve(node_data, config)
 
+    if north_south_ordering:
+        averages = {}
+        
+        for key in solution.route_dict:
+            route_coords = solution.route_dict[key]['route']
+            average_point = np.zeros(shape=(2,))
+            for point, _ in route_coords:
+                average_point += point
+            average_point /= len(route_coords)
+            averages[key] = average_point[0]
+        averages = pd.Series(averages).sort_values(ascending=False)
+
+        reordered_routes = {}
+        reordered_vehicles = {}
+        reordered_map = {}
+        for new_index, old_index in enumerate(averages.index):
+            reordered_routes[new_index] = solution.route_dict[old_index]
+            reordered_vehicles[new_index] = solution.vehicles[old_index]
+            reordered_map[old_index] = new_index
+
+        for key in solution.zone_route_map:
+            solution.zone_route_map[key] = [reordered_map[index] for index in solution.zone_route_map[key]]
+
+        solution_route_dict = reordered_routes
+        solution_vehicles = reordered_vehicles
+    else:
+        solution_route_dict = solution.route_dict
+        solution_vehicles = solution.vehicles
+
+    solution_route_dict = add_display_name(solution_route_dict)
+
     #Prnt soln to file
-    print_metrics_to_file(solution.route_dict, output_dir, node_data, solution.vehicles)
+    print_metrics_to_file(solution_route_dict, output_dir, node_data, solution_vehicles)
 
     routes_for_mapping = {}
-    route_dict = solution.route_dict
-    vehicles = solution.vehicles
-    for vehicle_id in range(len(route_dict)):
+    route_dict = solution_route_dict
+    vehicles = solution_vehicles
+    for vehicle_id in route_dict:
         current_route = []
         for i, item in enumerate(route_dict[vehicle_id]["route"]):
             cust_popup = [node_data.get_names_by_index(route_dict[vehicle_id]["indexed_route"][i]),
@@ -1409,10 +1462,12 @@ def main(node_data, config, output_dir):
         
         routes_for_mapping[vehicle_id] = current_route
     
+    display_dict = {str(key+1) : route_dict[key]['display_name'] for key in route_dict}
+
     # Index up everything for visualizaiton purposes 
     def index_up_dict(my_dict):
-        tmp = {}
-        return {str(k+1): my_dict[k] for k in sorted(my_dict.keys())}
+        return {str(k+1): my_dict[k] for k in my_dict}
+
     routes_for_mapping = index_up_dict(routes_for_mapping)
     vehicles = index_up_dict(vehicles)
     for k in solution.zone_route_map:
@@ -1433,7 +1488,6 @@ def main(node_data, config, output_dir):
             all_routes.append(sub_route)
             return all_routes
 
-        zones_to_segment = []
         for zone in config['zone_configs']:
             ref_zone_route_map = copy.deepcopy(solution.zone_route_map)
             zone_routes = []
@@ -1454,7 +1508,46 @@ def main(node_data, config, output_dir):
                     del routes_for_mapping[zone_route]
                     del vehicles[zone_route]
                     solution.zone_route_map[zone_to_segment] = zone_routes
-                    
+
+    if color_naming:
+        new_routes_for_mapping = {}
+        new_vehicles = {}
+        for key in routes_for_mapping:
+            if '-' in key:
+                number_key = key.split('-')[0]
+                second_part = key.split('-')[1]
+            else:
+                number_key = key
+                second_part = ''
+            
+            new_key = display_dict[number_key]
+            if second_part != '':
+                new_key = f'{new_key}-{second_part}'
+
+            new_routes_for_mapping[new_key] = routes_for_mapping[key]
+            new_vehicles[new_key] = vehicles[key]
+        
+        routes_for_mapping = new_routes_for_mapping
+        vehicles = new_vehicles
+
+        for key in solution.zone_route_map:
+            new_routes = []
+            for route in solution.zone_route_map[key]:
+                if '-' in route:
+                    number_key = route.split('-')[0]
+                    second_part = route.split('-')[1]
+                else:
+                    number_key = route
+                    second_part = ''
+                
+                new_key = display_dict[number_key]
+                if second_part != '':
+                    new_key = f'{new_key}-{second_part}'
+                
+                new_routes.append(new_key)
+            solution.zone_route_map[key] = new_routes
+                
+
     #Create output for manual route editing option
     manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, solution.zone_route_map)
     all_zones = [i['optimized_region'] for i in config['zone_configs']]
@@ -1463,4 +1556,7 @@ def main(node_data, config, output_dir):
     print(80*"#")
     print(f'Optmization Complete:\n Took {run_duration} to optimize {all_zones}')
     print(80*"#",'\n')
+
+  
+
     return routes_for_mapping, vehicles, solution.zone_route_map
