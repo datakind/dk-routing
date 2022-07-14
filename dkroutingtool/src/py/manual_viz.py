@@ -1,97 +1,25 @@
 """
 Allows for manual editing of routes and subsequent mapping.
 """
-import pandas as pd
-import file_config
-from file_config import ManualEditRouteOutput, ManualEditVehicleOutput, ManualSolutionOutput, ManualGPSOutput
 import visualization
 import optimization
 from build_time_dist_matrix import NodeLoader
+from config.config_manager import ConfigManager
+from output.file_manager import FileManager
+from output.route_solution_data import FinalOptimizationSolution, IntermediateOptimizationSolution
+from output.manual_route_data import ManualRouteData
 
-def write_manual_output(node_data, routes_for_mapping, vehicles, zone_route_map):
-    """
-    Writes the objects from the output form optimization.py to excel/csv files to be edited.
-    """
-    
-    #Create output for manual route editing option
-    zone_dfs = {}
-    #for each zone, construct lists of attributes of the nodes in order
-    for zone_name, route_indices in zone_route_map.items():
-        node_name = []
-        route_num = []
-        node_num = []
-        loads = []
-        demands = []
-        additional_info = []
-        node_i = 1
-
-        #for each route in that zone
-        for formula_index, route_id in enumerate(sorted(route_indices)):
-            route = routes_for_mapping[route_id]
-            
-            #for each node in that route
-            for route_i, node in enumerate(route):
-                node_name.append(node[1][0])
-                route_num.append(route_id)
-                loads.append(node[2])
-                demands.append(node[3])
-                additional_info.append(node[1][1])
-                #if first or last node, number (marker number) the node "Depot"
-                if route_i==0 or route_i==len(route)-1:
-                    node_num.append('Depot')
-                #else give itthe next marker number
-                else:
-                    node_num.append(node_i)
-                    node_i += 1
-
-            #formulas
-            node_name.insert(formula_index,f'=COUNTIF(A:A,"{route_id}")-2')
-            route_num.insert(formula_index,'Summary')
-            node_num.insert(formula_index,f'Route {route_id}')
-            loads.insert(formula_index,'')
-            demands.insert(formula_index, f'=SUMIFS(E:E,A:A,"{route_id}",E:E, ">0")')
-            additional_info.insert(formula_index,'')
-
-        #make a df for the zone
-        zone_df = pd.DataFrame({'route': route_num, 'node_num':node_num, 
-                    'node_name': node_name, 'load': loads, 'demands': demands,
-                    'additional_info': additional_info})
-        
-        # Start Route Nums at 1 (not zero for external display)
-        zone_df['route'] = zone_df['route']
-        zone_dfs[zone_name] = zone_df
-    
-    #write the zone dataframes to a xlsx file with different sheets 
-    with pd.ExcelWriter(ManualEditRouteOutput().get_filename(), engine='openpyxl') as writer:
-        for zone_key, zone_df in zone_dfs.items():
-            zone_df.to_excel(writer, sheet_name=zone_key, index=False)
-            
-    #Create a seperate csv file for the route id -> vehicle attrributes
-    veh_manual = {}
-    veh_id = []
-    veh_names = []
-    veh_profiles = []
-    for k, veh in vehicles.items():
-        veh_id.append(k)
-        veh_names.append(veh.name)
-        veh_profiles.append(veh.osrm_profile)
-    veh_manual['veh_id'] = veh_id
-    veh_manual['name'] = veh_names
-    veh_manual['profile'] = veh_profiles
-    pd.DataFrame(veh_manual).to_csv(ManualEditVehicleOutput().get_filename(), index=False)
-    
-    
-    gps_output_config = ManualGPSOutput()
-    node_data.write_nodes_to_file(gps_output_config.get_clean_filename(), verbose=True )	
-    
-def create_route_metrics_dict(routes_for_mapping, vehicles, node_data):
+def create_route_metrics_dict(solution: FinalOptimizationSolution) -> dict:
     """
     Creates a route_dict object (as in optimization.py) from manual editing files.
     """
-    
+    routes_for_mapping = solution.routes_for_mapping
+    vehicles = solution.vehicles
+    node_data = solution.intermediate_optimization_solution.node_data
+
     #Initialize the route_dict
     route_metrics_dict = {}
-    
+
     #for each route
     for route_id, route in routes_for_mapping.items():
         this_veh = vehicles[route_id]
@@ -102,7 +30,7 @@ def create_route_metrics_dict(routes_for_mapping, vehicles, node_data):
         data = optimization.DataProblem(node_data, [this_veh], node_name_ordered = node_names)
         #Find the time matrix (as done in optimizaiton.py)
         time_matrix = optimization.CreateTimeEvaluator(data, manual_run = True)
-        
+
         route_dist = 0
         total_time = 0
         route_load = 0
@@ -113,69 +41,32 @@ def create_route_metrics_dict(routes_for_mapping, vehicles, node_data):
             total_time += time_matrix.time_evaluator(i, i+1)
             route_dist += data.distance_matrix[i][i+1]
             route_load += data.demands[i+1]
-        
+
         #If key not in dict, add it
         if route_id not in route_metrics_dict.keys():
             route_metrics_dict[route_id] = {}
-        
+
         route_metrics_dict[route_id]['total_time'] = total_time
         route_metrics_dict[route_id]['total_dist'] = route_dist
         route_metrics_dict[route_id]['load'] = route_load
-        
+
     return route_metrics_dict
-    
-    
 
-def print_metrics_to_file_manual(routes_for_mapping, vehicles, node_data):
-    """
-    Prints solution (time, load, dist) to file.
-    """
-
-    #find the metrics
-    route_metrics_dict = create_route_metrics_dict(routes_for_mapping, vehicles, node_data)
-
-    plan_output = ''
-    for route_id, route in routes_for_mapping.items():
-        plan_output += 'Route ID {0}'.format(route_id)
-        if vehicles != None:
-            plan_output += ', ' + vehicles[route_id].name + ':\n'
-        else:
-            plan_output += ':\n'
-
-        for i, rfm_entry in enumerate(route):
-            plan_output += ' {0} '.format(rfm_entry[1][0])
-            if i < len(route)-1:
-                plan_output += '->'
-        plan_output += '\n'
-        plan_output += 'Distance of the route: {0}km\n'.format(int(route_metrics_dict[route_id]["total_dist"])/1000)
-        plan_output += 'Load of the route: {0}\n'.format(int(route_metrics_dict[route_id]["load"]))
-        plan_output += 'Time of the route: {0}min\n\n'.format(int(route_metrics_dict[route_id]["total_time"]/60))
-
-    plan_output += "Total: \n"
-    #Total the dist and time
-    total_dist = 0
-    total_time = 0
-    for i in route_metrics_dict.keys():
-        total_dist += route_metrics_dict[i]["total_dist"]
-        total_time += route_metrics_dict[i]["total_time"]/60
-    plan_output += "Distance of all routes: {0}km\n".format(int(total_dist)/1000)
-    plan_output += 'Time of all routes: {0}min\n\n'.format(int(total_time))
-
-    text_file = open(ManualSolutionOutput().get_filename(), "w")
-    text_file.write(plan_output)
-    text_file.close()
-
-
-def main():
+def run_manual_route_update(config_manager: ConfigManager) -> ManualRouteData:
     """
     Reads manual editing excel/csv files and recreates appropriate inputs to visualization.main()
     """
+    # Ensure input data exists.
+    config_manager.get_manual_edits_input_data().require()
+
     from optimization import Vehicle
     #Read the manual editing routes file
-    manual_routes = pd.ExcelFile(ManualEditRouteOutput().get_filename())
+    manual_routes = config_manager.get_manual_edits_input_data().manual_routes
     
     #Reconstruct the nodedata class from file provided
-    node_data = NodeLoader(load_clean_filepath=ManualGPSOutput().get_clean_filename()).get_nodedata()
+    node_data = NodeLoader.from_clean_gps_node_data(
+        config_manager, config_manager.get_manual_edits_input_data().clean_gps_node_data
+    )
     #for each sheet (zone) in routes file
     routes_for_mapping = {}
     zone_route_map = {}
@@ -203,16 +94,35 @@ def main():
             routes_for_mapping[row_key].append(rfm_entry)
             
     #read in the vehicles
-    manual_vehicles_df = pd.read_csv(ManualEditVehicleOutput().get_filename())
+    manual_vehicles_df = config_manager.get_manual_edits_input_data().manual_vehicles
     #Remake the vehicles list
     vehicles = {}
     for row in manual_vehicles_df.itertuples():
         vehicles[str(row.veh_id)] = Vehicle(name=row.name, osrm_profile=row.profile)
     
-    #Create the maps for the manual solution
-    visualization.main(routes_for_mapping, vehicles, zone_route_map, manual_editing_mode=True)
-    
-    #Print the new solution to file with estimated distances/times, etc
-    print_metrics_to_file_manual(routes_for_mapping, vehicles, node_data)
+    # We aren't going to re-run optimization, but instead construct
+    # the solutions object from the loaded data.
+    solution = FinalOptimizationSolution(
+        intermediate_optimization_solution=IntermediateOptimizationSolution(
+          node_data=node_data,
+          route_dict=None,
+          vehicles=vehicles,
+          zone_route_map=zone_route_map
+        ),
+        routes_for_mapping=routes_for_mapping,
+        vehicles=vehicles,
+        zone_route_map=zone_route_map
+    )
+
+    # Re-run the visualizations
+    vis_data = visualization.create_visualizations(solution, manual_editing_mode=True)
+
+    return ManualRouteData(
+        metrics_dict=create_route_metrics_dict(solution),
+        modified_optimization_solution=solution,
+        modified_visualizations=vis_data
+    )
+
+
     
     

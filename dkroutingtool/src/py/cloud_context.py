@@ -14,6 +14,22 @@ import json
 import datetime
 import shutil
 
+def initialize_cloud_client(scenario, manual_mapping_mode):
+    # First retreive the cloud context environment variable
+    try:
+        context = os.environ["CLOUDCONTEXT"]
+    except KeyError as e:
+        raise Exception('!! No Cloud Context Supplied.. are you trying to run local? (--local) !!', e)
+
+    print(f' *   Using Cloud Contex:  {context}')
+    if context.upper() == 'AWS':
+        cloud_client = AWSS3Context(scenario)
+    elif context.upper() == 'GDRIVE':
+        cloud_client = GoogleDriveContext(scenario)
+    else:
+        raise Exception(f"Context Not Implemented: {context}")
+    cloud_client.get_input_data(manual=manual_mapping_mode)
+    return cloud_client
 
 class StorageContext(ABC):
     
@@ -57,9 +73,9 @@ class StorageContext(ABC):
 
         if manual:
             shutil.copy(
-                "/manual_edits/manual_solution.txt", "/manual_edits/maps/manual_solution.txt") 
+                "/manual_edits/manual_solution.txt", "/manual_edits/maps/manual_solution.txt")
 
-            shutil.make_archive(f"{output_time}-{scenario}-manual", "zip", "/manual_edits/maps/")    
+            shutil.make_archive(f"{output_time}-{scenario}-manual", "zip", "/manual_edits/maps/")
 
             to_upload = f"{output_time}-{scenario}-manual.zip"
             client.upload_data(to_upload, "output")
@@ -72,8 +88,8 @@ class StorageContext(ABC):
                 shutil.copy("data/gps_data_clean/dropped_flagged_gps_points.csv", "/maps/dropped_flagged_gps_points.csv")
                 shutil.copy("/manual_edits/manual_routes_edits.xlsx", "/maps/manual_routes_edits.xlsx")
 
-            shutil.make_archive(f"{output_time}-{scenario}", "zip", "/maps/")    
-            
+            shutil.make_archive(f"{output_time}-{scenario}", "zip", "/maps/")
+
             to_upload = f"{output_time}-{scenario}.zip"
             client.upload_data(to_upload, "output")
 
@@ -92,9 +108,8 @@ class FileDoesNotExistError(Exception):
     pass
 
 class AWSS3Context(StorageContext):
-    def __init__(self, scenario_name):
-
-        super().__init__()
+    def __init__(self, scenario_name, file_manager):
+        super().__init__(file_manager)
         self.bucket_name = os.environ['AWSBUCKETNAME']
         self.service = self.build_service()
         self.scenario_name = scenario_name
@@ -156,8 +171,8 @@ class AWSS3Context(StorageContext):
             print("Error-->", e)
 
 class GoogleDriveContext(StorageContext):
-    def __init__(self, scenario_name):
-        super().__init__()
+    def __init__(self, scenario_name, file_manager):
+        super().__init__(file_manager)
 
         try:
             customer_file_id = os.environ["GDRIVECUSTOMERFILEID"]

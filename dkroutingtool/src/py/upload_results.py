@@ -4,8 +4,7 @@ import shutil
 
 
 
-def main(cloud_client, filenames=None, manual_filenames=None, scenario='input',
-         manual=False):
+def upload_results(cloud_client, filenames=None, manual_filenames=None, scenario='input', manual=False):
     client = cloud_client
 
     output_time = datetime.datetime.utcnow().isoformat().split(".")[0]

@@ -26,7 +26,7 @@ import ujson
 import manual_viz
 import file_config
 from visualization import colorList
-
+from output.route_solution_data import IntermediateOptimizationSolution, FinalOptimizationSolution
 import osrmbindings
 
 osrm_filepath = os.environ['osm_filename']
@@ -47,12 +47,6 @@ color_naming = True
 north_south_ordering = True
 
 verbose = False
-
-@attrs
-class OptimizationSolution(object):
-    route_dict = attrib(type=dict)
-    vehicles = attrib(type=dict)
-    zone_route_map = attrib(type=dict)
 
 def clean_up_time(hour):
     hour = hour.strip()
@@ -307,7 +301,7 @@ class DataProblem():
         self._time_windows = [(self.start_seconds, self.configured_time_horizon) for j in range(self._num_locations)]
         
         # User-provided time windows
-        if config.get('use_time_windows', False):
+        if config and config.get('use_time_windows', False):
             user_time_windows = node_data.get_attr('time_windows')[_boolean_selected]
 
             time_windows_specified = 0
@@ -1279,12 +1273,11 @@ def deconstruct_routes(current_routes, node_data_filtered, data):
     unload_routes = {'fake_routes': fake_routes, 'routes_to_vehicles': routes_to_vehicles, 'starts': starts, 'ends': ends}
     return unload_routes
 
-def solve(node_data, config: str):
+def solve(node_data, config: str) -> IntermediateOptimizationSolution:
     """Solve the route for each zone.
 
     Args:
         config: json route config.
-
     """
     zone_configs = config.get('zone_configs')
     global_solver_options = config.get('global_solver_options')
@@ -1387,7 +1380,8 @@ def solve(node_data, config: str):
         zone_name = zone_name.replace(" ", "")
         zone_route_map[zone_name] = sorted(this_zone_keys)
 
-    return OptimizationSolution(
+    return IntermediateOptimizationSolution(
+        node_data=node_data,
         route_dict=route_dict,
         vehicles=vehicles,
         zone_route_map=zone_route_map
@@ -1410,11 +1404,9 @@ def reorder_route_dict(route_dict):
     print(route_dict)
     return route_dict
 
-def main(node_data, config, output_dir):
-    starting_time = time.time()
 
-    # Solve the routing problem.
-    solution = solve(node_data, config)
+def finalize_route_solution(solution: IntermediateOptimizationSolution, config) -> FinalOptimizationSolution:
+    node_data = solution.node_data
 
     if north_south_ordering:
         averages = {}
@@ -1446,9 +1438,6 @@ def main(node_data, config, output_dir):
         solution_vehicles = solution.vehicles
 
     solution_route_dict = add_display_name(solution_route_dict)
-
-    #Prnt soln to file
-    print_metrics_to_file(solution_route_dict, output_dir, node_data, solution_vehicles)
 
     routes_for_mapping = {}
     route_dict = solution_route_dict
@@ -1549,7 +1538,28 @@ def main(node_data, config, output_dir):
                 
 
     #Create output for manual route editing option
-    manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, solution.zone_route_map)
+    #manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, solution.zone_route_map)
+    return FinalOptimizationSolution(
+        intermediate_optimization_solution=solution,
+        routes_for_mapping=routes_for_mapping,
+        vehicles=vehicles,
+        zone_route_map=solution.zone_route_map
+    )
+
+def run_optimization(node_data, config):
+    """Main entrypoint for optimization"""
+    starting_time = time.time()
+
+    # Solve the routing problem.
+    solution = solve(node_data, config)
+
+    # Finalize the optimization solution.
+    final_optimization = finalize_route_solution(
+        solution=solution,
+        config=config
+    )
+
+    # Logging
     all_zones = [i['optimized_region'] for i in config['zone_configs']]
     run_duration = strftime("%Mmin %Ssec", gmtime(time.time()-starting_time))
     print('\n')
@@ -1557,6 +1567,4 @@ def main(node_data, config, output_dir):
     print(f'Optmization Complete:\n Took {run_duration} to optimize {all_zones}')
     print(80*"#",'\n')
 
-  
-
-    return routes_for_mapping, vehicles, solution.zone_route_map
+    return final_optimization

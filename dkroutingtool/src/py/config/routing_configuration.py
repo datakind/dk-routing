@@ -34,7 +34,7 @@ class RoutingConfig:
             config_contents = json.load(opened)
         return RoutingConfig(config_contents)
 
-    def raw_json(self):
+    def get_raw_json(self):
         """TODO: consider creating a wrapper around this.
         """
         return self.config

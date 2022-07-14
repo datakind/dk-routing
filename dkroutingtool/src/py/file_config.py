@@ -26,45 +26,6 @@ def make_output_dir(output_dir=DEFAULT_OUTPUT_DIR):
 ### Files to read ###
 #Customer GPS Input object can easily be customized here (i.e. files swicthed)
 
-class GPSInput():
-    
-    def __init__(self, filename, label_map):
-        self.filename = filename
-        self.label_map = label_map
-        
-    
-    def get_filename(self):
-        return self.filename
-        
-    def get_label_map(self):
-        return self.label_map
-      
-class CustomerGPSInput(GPSInput):
-    
-    # read in file which contains lat long of each customer locations
-    f_gps = data_folder / 'customer_data.xlsx'
-    custom_header = f'{data_folder}/custom_header.yaml'
-
-    yaml = ruamel.yaml.YAML(typ='safe')
-    
-    with open(custom_header, 'r') as opened:
-        cust_label_map = yaml.load(opened)
-        cust_label_map = {value: key for key, value in cust_label_map.items()} # Simply reverse the mapping
-
-    def __init__(self):
-        super().__init__(self.f_gps, self.cust_label_map)
-
-class ExtraGPSInput(GPSInput):
-    f_gps_extra = data_folder / 'extra_points.csv'
-    
-    extra_label_map = {'GPS (Latitude)':'lat_orig',\
-    'GPS (Longitude)':'long_orig',\
-    'name': 'name',\
-    'type': 'type'
-    }
-    
-    def __init__(self):
-        super().__init__(self.f_gps_extra, self.extra_label_map)
 
 
 ### Files to write ###
@@ -114,18 +75,18 @@ class TimeDistMatOutput():
         return filepath
 
 class SolutionOutput():
-
+#done
     def get_filename(self, output_dir=DEFAULT_OUTPUT_DIR):
         return os.path.join(output_dir, 'solution.txt')
 
 class RouteResponseOutput():
-
+#done
     def get_filename(self, output_dir=DEFAULT_OUTPUT_DIR):
         return os.path.join(output_dir, 'route_response.json')
 
 
 class InstructionsOutput():
-
+#done
     def get_filename(self, output_dir=DEFAULT_OUTPUT_DIR):
         return os.path.join(output_dir, 'instructions.txt')
 
@@ -167,7 +128,7 @@ class ManualMapOutput():
         self.filenamePostString = filenamePostString
 
 class ManualEditRouteOutput():
-    
+    #done
     route_output = 'manual_routes_edits.xlsx'
     
     def get_filename(self):
@@ -175,7 +136,7 @@ class ManualEditRouteOutput():
         return filename
         
 class ManualEditVehicleOutput():
-
+#done
     veh_output = 'manual_vehicles.csv'
 
     def get_filename(self):
@@ -183,7 +144,7 @@ class ManualEditVehicleOutput():
         return filename
         
 class ManualSolutionOutput():
-    
+    #done
     soln_output = 'manual_solution.txt'
     
     def get_filename(self):
@@ -191,7 +152,7 @@ class ManualSolutionOutput():
         return filename
         
 class ManualGPSOutput():
-
+#done
     #file names to write to
     f_gps_clean = manual_edits_folder / 'clean_gps_points.csv'
 
@@ -200,18 +161,8 @@ class ManualGPSOutput():
     
         
 class PickleNodeDataOutput():
-
     #file names to write to
     pickle_file = data_folder / 'node_data_pkl.p'
 
     def get_filename(self):
         return self.pickle_file
-        
-class ManualPickleNodeDataOutput():
-
-    #file names to write to
-    pickle_file = manual_edits_folder / 'node_data_pkl.p'
-
-    def get_filename(self):
-        return self.pickle_file
-

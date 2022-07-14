@@ -5,27 +5,18 @@ Computes time and distance matrices for all nodes and vehicles and writes
 to file.
 """
 import os
-import datetime
 import pathlib
 import math
 import pandas as pd
 import numpy as np
-from itertools import combinations
 import copy
-import pickle
-from file_config import CustomerGPSInput, ExtraGPSInput, GPSOutput, TimeDistMatOutput, PickleNodeDataOutput
+from config.config_manager import ConfigManager
+from config.gps_input_data import GPSInputData
+from file_config import GPSOutput, TimeDistMatOutput
 import time #looking at runtime
-import scipy.spatial.distance as sci_dist
-
 import ujson
-import ruamel.yaml
-
 import osrmbindings
 
-yaml = ruamel.yaml.YAML(typ='safe')
-
-with open('build_parameters.yml', 'r') as opened:
-    chosen_profiles = yaml.load(opened)['Build']['vehicle-types']
 osrm_filepath = os.environ['osm_filename']
 
 verbose = False
@@ -37,7 +28,7 @@ class NodeData:
     or distance) matrix.
     """
     #Define the column names to be used, must have all these columns!
-    node_type = 'type' #type of node (e.g. customer, depot)
+    node_type = GPSInputData.GPS_TYPE_COLUMN_NAME #type of node (e.g. customer, depot)
     node_name = 'name' #name of node (e.g. customer ID or name of an office)
     lat_orig = 'lat_orig' #input lat
     long_orig = 'long_orig'#input long
@@ -45,7 +36,7 @@ class NodeData:
     zone = 'zone'
     buckets = 'buckets'
     closed = 'closed'
-    
+
     
     standard_columns = [node_type, node_name, lat_orig, long_orig, closed, zone, buckets]
     standard_columns_bad = standard_columns.copy()
@@ -124,7 +115,10 @@ class NodeData:
         
         #create a boolean series of wanted rows, initialize all to False
         bool_filter_good = pd.Series([False]*self.df_gps_verbose.shape[0], index = self.df_gps_verbose.index)
-        bool_filter_bad = pd.Series([False]*self.df_bad_gps_verbose.shape[0], index = self.df_bad_gps_verbose.index)
+        bad_df = self.df_bad_gps_verbose
+        if bad_df is None:
+            bad_df = self.df_gps_verbose.iloc[:0, :].copy()
+        bool_filter_bad = pd.Series([False]*bad_df.shape[0], index=bad_df.index)
 
         for label, val_list in dict_filter.items():
             
@@ -138,7 +132,7 @@ class NodeData:
                     label = 'name'
                 #create a boolean series from wanted rows for this selection
                 this_bool_filter_good = self.df_gps_verbose[label] == val
-                this_bool_filter_bad  = self.df_bad_gps_verbose[label] == val
+                this_bool_filter_bad = bad_df[label] == val
             
                 #Do an element-wise OR between global mask and this one
                 bool_filter_good = bool_filter_good | this_bool_filter_good
@@ -155,12 +149,14 @@ class NodeData:
 
         #filter the nodes
         df_gps_verbose_new = self.df_gps_verbose.loc[bool_filter_good]
-        df_bad_gps_verbose_new = self.df_bad_gps_verbose.loc[bool_filter_bad]
+        df_bad_gps_verbose_new = bad_df.loc[bool_filter_bad]
+        if len(bad_df) == 0:
+            df_bad_gps_verbose_new = None
 
         #Create new NodeDate object to return
-        filtered_node_data = NodeData(df_gps_verbose_new, df_bad_gps_verbose_new,\
-        veh_time_osrmmatrix_dict_new, veh_dist_osrmmatrix_dict_new)
-
+        filtered_node_data = NodeData(
+            df_gps_verbose_new, df_bad_gps_verbose_new,
+            veh_time_osrmmatrix_dict_new, veh_dist_osrmmatrix_dict_new)
 
         #Update str used for filename printing
         if filter_name_str is not None:
@@ -294,8 +290,7 @@ class NodeData:
             Numpy array of all standard column values for all "clean" nodes.
         """
         return self.df_gps_verbose[self.standard_columns].values
-        
-        
+    
     def write_nodes_to_file(self, f_path_good, f_path_bad=None, verbose=False):
         """Writes nodes to CSV files post-processing. Two files are created: one with clean nodes
         good for use in OSRM, one with nodes that were removed because they would cause cause errors
@@ -353,166 +348,108 @@ class NodeLoader:
     #dictionaries with key:val pairs as vehicle profile string: OSRMMatrix object 
     veh_time_osrmmatrix_dict = {}
     veh_dist_osrmmatrix_dict = {}
-
     
-    def __init__(self, cust_gps_input=None, extra_gps_input=None, zone_configs=None, load_clean_filepath=None, veh_profiles=chosen_profiles, num_containers_default=3):
+    def __init__(self,
+                 config_manager: ConfigManager,
+                 zone_configs=None,
+                 num_containers_default=3):
         """Initializes the NodeData class.
             Args:
-                cust_gps_input (str or pathlib.Path, default None): path to customer gps file
-                extra_gps_input (str or pathlib.Path, default None): path to extra locations gps file
-                load_clean_filepath (str or pathlib.Path): path to cleaned file (if not building from scratch)
-                veh_profiles (list of str, default NodeLoader.veh_profiles): vehicle profiles for which to calculate
                 OSRM time/dist matrices
             Returns:
                 None
         """
-                                
-        #If you building from raw files
-        if load_clean_filepath == None:
-            
-            #Read in customer data
-            df_gps_customers = self.read_node_file(cust_gps_input.get_filename(), cust_gps_input.get_label_map())
-        
-            #Add a column describing the type of point
-            df_gps_customers[NodeData.node_type] = pd.Series('Customer', index=df_gps_customers.index)
-        
-            #Read in extra point data
-            df_gps_extra = self.read_node_file(extra_gps_input.get_filename(), extra_gps_input.get_label_map())
+        self.config_manager = config_manager
+        gps_input_data = config_manager.get_gps_inputs_data()
+        df_gps_customers = gps_input_data.get_df_gps_customers()
+        df_gps_extra = gps_input_data.get_df_gps_extra()
 
-            # Create unload nodes
-            unload_depots = []
-            unload_idx = 0
-            for zone_config in zone_configs:
-                if verbose:
-                    print('Zone config', zone_config)
-                if zone_config['enable_unload']:
-                    
-                    # Get all possible start / end locations for the vehicles 
-                    # All start / end locations are assumed to be unload locations
-                    all_start_end_options = []
-
-                    unload_capacity = 0
-                    for v in zone_config['unload_vehicles']:
-                        all_start_end_options.extend(v[2:])
-                        if -v[1] < unload_capacity:
-                            unload_capacity = -v[1]
-                    all_start_end_options =  list(set(all_start_end_options))
-
-                    zone = zone_config['optimized_region'][0]
-                    df_temp = df_gps_customers[df_gps_customers['zone'] == zone].copy()
-                    df_temp['buckets'] = df_temp['buckets'].replace(0, num_containers_default)
-                    total_demand = sum(df_temp['buckets'])
-                    unload_number = int(math.ceil(total_demand/-unload_capacity))
-                    
-                    if 'custom_unload_points' in zone_config:
-                        custom_unload_list = zone_config['custom_unload_points']
-                    else:
-                        custom_unload_list = []
-
-                    for start_end in all_start_end_options + custom_unload_list:
-                        df_start_end = df_gps_extra[df_gps_extra['name'] == start_end]
-                        start_end_lat, start_end_lon = df_start_end.iloc[0][['lat_orig', 'long_orig']]
-
-                        for _ in range(unload_number):            
-                            # Will eventually put that into a function that just accepts a couple of parameters...
-                            unload_depots.append({'lat_orig': start_end_lat, 
-                                                  'long_orig': start_end_lon, 
-                                                  'name': f'UNLOAD-{start_end}-{unload_idx}',
-                                                  'Start Date': '2000-01-01', 
-                                                  'closed': 0, 
-                                                  'buckets': unload_capacity, 
-                                                  'zone': zone, 
-                                                  'type' : 'Customer',
-                                                  'time_windows': np.nan})
-
-                            unload_idx += 1
-
-
+        # Create unload nodes
+        unload_depots = []
+        unload_idx = 0
+        for zone_config in zone_configs:
             if verbose:
-                print("Unload depots", unload_depots)
-                    
-            if len(unload_depots) > 0:
-                unload_to_append = pd.DataFrame(unload_depots)
-                df_gps_customers = df_gps_customers.append(unload_to_append, ignore_index=True, sort=False)
+                print('Zone config', zone_config)
+            if zone_config['enable_unload']:
 
-            
-            #Merge the customer and extra data
-            self.df_gps_verbose = df_gps_customers.append(df_gps_extra, ignore_index=True, sort=False)
-            
-            self.df_gps_verbose['name'] = self.df_gps_verbose['name'].astype(str)
-            
-            #Clean customer data
-            self.clean_nodes(max_dist=300)
-            #self.clean_nodes()
-            
-            #Backfill number of buckets to be max
-            self.df_gps_verbose.loc[(self.df_gps_verbose['type'] == 'Customer') & (self.df_gps_verbose['buckets'] == 0), 'buckets'] = num_containers_default
-            print('  *   Num buckets Assumed: ', num_containers_default)
-            
-        elif load_clean_filepath != None:
-            self.df_gps_verbose = self.read_node_file(load_clean_filepath)
-        else:
-            raise Exception('Input into NodeData class not sufficient to build class.')
-            
+                # Get all possible start / end locations for the vehicles
+                # All start / end locations are assumed to be unload locations
+                all_start_end_options = []
+
+                unload_capacity = 0
+                for v in zone_config['unload_vehicles']:
+                    all_start_end_options.extend(v[2:])
+                    if -v[1] < unload_capacity:
+                        unload_capacity = -v[1]
+                all_start_end_options =  list(set(all_start_end_options))
+
+                zone = zone_config['optimized_region'][0]
+                df_temp = df_gps_customers[df_gps_customers['zone'] == zone].copy()
+                df_temp['buckets'] = df_temp['buckets'].replace(0, num_containers_default)
+                total_demand = sum(df_temp['buckets'])
+                unload_number = int(math.ceil(total_demand/-unload_capacity))
+
+                if 'custom_unload_points' in zone_config:
+                    custom_unload_list = zone_config['custom_unload_points']
+                else:
+                    custom_unload_list = []
+
+                for start_end in all_start_end_options + custom_unload_list:
+                    df_start_end = df_gps_extra[df_gps_extra['name'] == start_end]
+                    start_end_lat, start_end_lon = df_start_end.iloc[0][['lat_orig', 'long_orig']]
+
+                    for _ in range(unload_number):
+                        # Will eventually put that into a function that just accepts a couple of parameters...
+                        unload_depots.append({'lat_orig': start_end_lat,
+                                              'long_orig': start_end_lon,
+                                              'name': f'UNLOAD-{start_end}-{unload_idx}',
+                                              'Start Date': '2000-01-01',
+                                              'closed': 0,
+                                              'buckets': unload_capacity,
+                                              'zone': zone,
+                                              'type' : 'Customer',
+                                              'time_windows': np.nan})
+
+                        unload_idx += 1
+
+
+        if verbose:
+            print("Unload depots", unload_depots)
+
+        if len(unload_depots) > 0:
+            unload_to_append = pd.DataFrame(unload_depots)
+            df_gps_customers = df_gps_customers.append(unload_to_append, ignore_index=True, sort=False)
+
+
+        #Merge the customer and extra data
+        self.df_gps_verbose = df_gps_customers.append(df_gps_extra, ignore_index=True, sort=False)
+
+        self.df_gps_verbose['name'] = self.df_gps_verbose['name'].astype(str)
+
+        #Clean customer data
+        self.clean_nodes(max_dist=300)
+        #self.clean_nodes()
+
+        #Backfill number of buckets to be max
+        self.df_gps_verbose.loc[(self.df_gps_verbose['type'] == 'Customer') & (self.df_gps_verbose['buckets'] == 0), 'buckets'] = num_containers_default
+        print('  *   Num buckets Assumed: ', num_containers_default)
+
         #Build the time and distance matrices for all vehicle profiles
         nodes = NodeData(self.df_gps_verbose)
-        for veh in veh_profiles:
-            durations, distances, snapped_gps_coords = self.get_matrices(nodes.lat_long_coords, veh)
+        self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict = NodeLoader.build_veh_matrices(
+            config_manager=config_manager, nodes=nodes
+        )
 
-            self.veh_time_osrmmatrix_dict[veh] = OSRMMatrix(nodes, durations, snapped_gps_coords)
-            self.veh_dist_osrmmatrix_dict[veh] = OSRMMatrix(nodes, distances, snapped_gps_coords)
-                    
+    @staticmethod
+    def build_veh_matrices(config_manager, nodes):
+        veh_time_osrmmatrix_dict = {}
+        veh_dist_osrmmatrix_dict = {}
+        for veh in config_manager.get_build_parameters().get_vehicle_profiles():
+            durations, distances, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh)
+            veh_time_osrmmatrix_dict[veh] = OSRMMatrix(nodes, durations, snapped_gps_coords)
+            veh_dist_osrmmatrix_dict[veh] = OSRMMatrix(nodes, distances, snapped_gps_coords)
+        return veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict
 
-    def read_node_file(self, f_path, label_map=None):
-        """
-        Reads file containing node information and maps 
-        
-        Args:
-            f_path (str or pathlib.Path): File with node information.
-            label_map (dictionary, default None): dictionary maps file labels to NodeData attributes
-        Returns:
-            pandas Dataframe containing all nodes from file
-        """
-        
-        #If filename is f_path, convert to pathlib.Path object
-        if isinstance(f_path, str):
-            f_path = pathlib.Path(f_path)
-        else:
-            #if file doesn't exist, throw exception
-            if not f_path.exists():
-                raise FileNotFoundError(f_path)
-            else:
-                #read in the file
-                if str(f_path).endswith('.xlsx'):
-                    df_gps_all = pd.read_excel(f_path)
-                elif str(f_path).endswith('.csv'):
-                    #Check different encoding possiblities
-                    #Encoding possilbities
-                    csv_encodings = ['utf-8', 'cp1252', 'latin1']
-                    try:
-                        df_gps_all = pd.read_csv(f_path, encoding='utf-8')
-                    except UnicodeDecodeError:
-                        df_gps_all = pd.read_csv(f_path, encoding='cp1252')
-                else:
-                    raise Exception('File should be either a .xlsx or .csv file.')
-                    
-                    
-        #Standardizing colummn labels
-        if label_map != None:
-            for key,val in label_map.items():
-                if key not in df_gps_all.columns:
-                    print(f'Missing {(key,val)}, adding substition')
-                    if val == 'closed':
-                        df_gps_all[key] = 0
-                    elif val == 'time_windows':
-                        df_gps_all[key] = np.nan
-                    else:
-                        df_gps_all[key] = ''
-                    #raise Exception('Label not found.')
-            df_gps_all.rename(index=str, columns=label_map, inplace=True)
-        
-        return df_gps_all    
-        
     def clean_nodes(self, max_dist=None):
         """
         Cleans all the node data. Data cleaning includes removing nodes
@@ -554,7 +491,7 @@ class NodeLoader:
             flagged_indices = []
             removed_indices = []           
             
-            for profile in chosen_profiles:
+            for profile in self.config_manager.get_build_parameters().get_vehicle_profiles():
                 veh = profile
                 osrmbindings.initialize(f"/{veh}/{osrm_filepath}")
                 snapped_lat_profile = []
@@ -636,8 +573,8 @@ class NodeLoader:
         
         return NodeData(self.df_gps_verbose, self.df_bad_gps_verbose, self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict)
     
-
-    def get_matrices(self, lat_long_coords, veh):
+    @staticmethod
+    def get_matrices(lat_long_coords, veh):
         """Retrieves the time and distance matrices from OSRM.
         
         Args:
@@ -663,7 +600,17 @@ class NodeLoader:
         snapped_gps_coords = [source["location"] for source in parsed["sources"]]
         snapped_gps_coords = np.fliplr(snapped_gps_coords)
 
-        return durations, distances, snapped_gps_coords        
+        return durations, distances, snapped_gps_coords
+
+    @staticmethod
+    def from_clean_gps_node_data(config_manager, node_data_df) -> NodeData:
+        """
+        Create a NodeData object from a loaded pre-cleaned dataframe
+        """
+        veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict = NodeLoader.build_veh_matrices(
+            config_manager=config_manager, nodes=NodeData(node_data_df)
+        )
+        return NodeData(node_data_df, None, veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict)
 
 class OSRMMatrix:
     """
@@ -716,19 +663,20 @@ class OSRMMatrix:
             pd.DataFrame(self.snapped_gps_coords,\
             index=self.clean_nodes.names).to_csv(f_path_gps, index=True, index_label=False, header=False)
 
-def process_nodes(node_loader_options=None, zone_configs=None):
+def process_nodes(config_manager, node_loader_options=None, zone_configs=None):
     """Reads node data and outputs matrices necessary for optimization."""
 
     # read in file which contains lat long of each pt
     if node_loader_options != None:
-        node_data = NodeLoader(CustomerGPSInput(), ExtraGPSInput(), zone_configs, **node_loader_options).get_nodedata()
+        node_data = NodeLoader(config_manager, zone_configs, **node_loader_options).get_nodedata()
     else:
-        node_data = NodeLoader(CustomerGPSInput(), ExtraGPSInput()).get_nodedata()
+        node_data = NodeLoader(config_manager).get_nodedata()
     
     #Write cleaned nodes to output
     gps_output_config = GPSOutput()
-    node_data.write_nodes_to_file(gps_output_config.get_clean_filename(),\
-    f_path_bad=gps_output_config.get_flagged_filename(), verbose=True )
+    node_data.write_nodes_to_file(gps_output_config.get_clean_filename(),
+                                  f_path_bad=gps_output_config.get_flagged_filename(),
+                                  verbose=True)
     
     #Write time/dist matrices to file
     node_data.write_mats_to_file()
