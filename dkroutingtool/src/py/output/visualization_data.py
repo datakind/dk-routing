@@ -47,7 +47,7 @@ class VisualizationOutput(OutputObjectBase):
                 filename += map.suffix
             filename += '.html'
             # write to filepath
-            this_path= pathlib.Path(file_manager.output_config.map_folder, filename)
+            this_path = pathlib.Path(file_manager.output_config.map_folder, filename)
             full_path = file_manager.make_path(this_path)
             with open(full_path, 'wb') as f:
                 f.write(map.map_html_output)
@@ -57,7 +57,7 @@ class VisualizationOutput(OutputObjectBase):
             path = file_manager.make_path(file_manager.output_config.route_geojson_manual_path)
         else:
             path = file_manager.make_path(file_manager.output_config.route_geojson_path)
-        print("SAVING", path)
+
         with open(path, 'w') as output_file:
             geojson_library.dump(self.data.route_geojson, output_file)
 
@@ -66,7 +66,7 @@ class VisualizationOutput(OutputObjectBase):
             path = file_manager.make_path(file_manager.output_config.node_geojson_manual_path)
         else:
             path = file_manager.make_path(file_manager.output_config.node_geojson_path)
-        print("SAVING", path)
+
         with open(path, 'w') as output_file:
             geojson_library.dump(self.data.node_geojson, output_file)
 

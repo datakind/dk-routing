@@ -12,7 +12,7 @@ import numpy as np
 import copy
 from config.config_manager import ConfigManager
 from config.gps_input_data import GPSInputData
-from file_config import GPSOutput, TimeDistMatOutput
+from output.cleaned_node_data import CleanedNodeData
 import time #looking at runtime
 import ujson
 import osrmbindings
@@ -48,9 +48,6 @@ class NodeData:
     veh_time_osrmmatrix_dict=None
     veh_dist_osrmmatrix_dict=None
 
-    #Descriptor of nodes for printing
-    post_filename_str = None
-    
     def __init__(self, df_gps, df_bad_gps=None, veh_time_osrmmatrix_dict=None, veh_dist_osrmmatrix_dict=None):
         """
         Instantiates the NodeData class.
@@ -312,23 +309,7 @@ class NodeData:
             self.df_gps_verbose.to_csv(f_path_good, columns=self.standard_columns, index=False)
             if f_path_bad != None:
                 self.df_bad_gps_verbose.to_csv(f_path_bad, columns=self.standard_columns_bad, index=False)
-    
-                
-    def write_mats_to_file(self):
-        """Writes snapped GPS coordinates and time/dist matrices to file.
-        
-        Args:
-            None
-        """
-        mat_file_config=TimeDistMatOutput(self.post_filename_str)
-        for veh in self.veh_time_osrmmatrix_dict.keys():
-            f_path_mat = mat_file_config.make_mat_filename(veh, 'time')
-            f_path_gps = mat_file_config.make_snapped_gps_filename(veh)
-            self.veh_time_osrmmatrix_dict[veh].write_to_file(f_path_mat, f_path_gps)
-        for veh in self.veh_dist_osrmmatrix_dict.keys():
-            f_path_mat = mat_file_config.make_mat_filename(veh, 'dist')
-            self.veh_dist_osrmmatrix_dict[veh].write_to_file(f_path_mat, f_path_gps)
-            
+
     def __reduce__(self):
         """Helps with pickling."""
         return (NodeData, (self.df_gps_verbose, self.df_bad_gps_verbose, self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict))
@@ -663,7 +644,9 @@ class OSRMMatrix:
             pd.DataFrame(self.snapped_gps_coords,\
             index=self.clean_nodes.names).to_csv(f_path_gps, index=True, index_label=False, header=False)
 
-def process_nodes(config_manager, node_loader_options=None, zone_configs=None):
+def process_nodes(config_manager,
+                  node_loader_options=None,
+                  zone_configs=None) -> NodeData:
     """Reads node data and outputs matrices necessary for optimization."""
 
     # read in file which contains lat long of each pt
@@ -671,17 +654,6 @@ def process_nodes(config_manager, node_loader_options=None, zone_configs=None):
         node_data = NodeLoader(config_manager, zone_configs, **node_loader_options).get_nodedata()
     else:
         node_data = NodeLoader(config_manager).get_nodedata()
-    
-    #Write cleaned nodes to output
-    gps_output_config = GPSOutput()
-    node_data.write_nodes_to_file(gps_output_config.get_clean_filename(),
-                                  f_path_bad=gps_output_config.get_flagged_filename(),
-                                  verbose=True)
-    
-    #Write time/dist matrices to file
-    node_data.write_mats_to_file()
-    
-    #pickle.dump(NodeData(node_data.df_gps_verbose, node_data.df_bad_gps_verbose, node_data.veh_time_osrmmatrix_dict, node_data.veh_dist_osrmmatrix_dict), open(PickleNodeDataOutput().get_filename() , 'wb'))
 
     return node_data
 

@@ -20,12 +20,12 @@ class ConfigFileLocations(object):
     routing_config_file = attr.ib(type=str)
     build_parameters_file = attr.ib(type=str)
     gps_input_files = attr.ib(type=GPSInputPaths)
-    manual_edits_input_files = attr.ib(type=ManualEditsInputPaths)
-
+    manual_edits_input_files = attr.ib(type=ManualEditsInputPaths, default=None)
 
 class ConfigManager(object):
-    def __init__(self, loaded_configs):
+    def __init__(self, loaded_configs, config_file_locations):
         self.configs = loaded_configs
+        self.config_file_locations = config_file_locations
 
     @staticmethod
     def load(config_files: ConfigFileLocations):
@@ -34,8 +34,9 @@ class ConfigManager(object):
         configs[ConfigType.ROUTING_CONFIG] = ConfigManager.load_routing_config(config_files)
         configs[ConfigType.BUILD_PARAMETERS] = ConfigManager.load_build_parameters(config_files)
         configs[ConfigType.GPS_INPUT_DATA] = ConfigManager.load_gps_input_data(config_files)
-        configs[ConfigType.MANUAL_EDITS_INPUT_DATA] = ConfigManager.load_manual_edits_input_data(config_files)
-        return ConfigManager(configs)
+        if config_files.manual_edits_input_files is not None:
+            configs[ConfigType.MANUAL_EDITS_INPUT_DATA] = ConfigManager.load_manual_edits_input_data(config_files)
+        return ConfigManager(configs, config_files)
 
     @staticmethod
     def load_routing_config(config_files: ConfigFileLocations):

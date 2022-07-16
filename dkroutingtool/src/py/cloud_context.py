@@ -14,7 +14,8 @@ import json
 import datetime
 import shutil
 
-def initialize_cloud_client(scenario, manual_mapping_mode):
+def initialize_cloud_client(scenario, manual_mapping_mode,
+                            file_manager, config_manager):
     # First retreive the cloud context environment variable
     try:
         context = os.environ["CLOUDCONTEXT"]
@@ -23,9 +24,9 @@ def initialize_cloud_client(scenario, manual_mapping_mode):
 
     print(f' *   Using Cloud Contex:  {context}')
     if context.upper() == 'AWS':
-        cloud_client = AWSS3Context(scenario)
+        cloud_client = AWSS3Context(scenario, file_manager, config_manager)
     elif context.upper() == 'GDRIVE':
-        cloud_client = GoogleDriveContext(scenario)
+        cloud_client = GoogleDriveContext(scenario, file_manager, config_manager)
     else:
         raise Exception(f"Context Not Implemented: {context}")
     cloud_client.get_input_data(manual=manual_mapping_mode)
@@ -36,6 +37,10 @@ class StorageContext(ABC):
     """
     Tool storage context base class 
     """
+
+    def __init__(self, file_manager, config_manager):
+        self.file_manager = file_manager
+        self.config_manager = config_manager
 
     @abstractmethod
     def build_service(self, dkocr):
@@ -61,16 +66,17 @@ class StorageContext(ABC):
 
         raise Exception("Unsupported")
 
-    def upload_results(self, cloud_client, filenames=None, manual_filenames=None, scenario='input',
-         manual=False):
+    def upload_results(self,
+                       cloud_client,
+                       filenames=None,
+                       manual_filenames=None,
+                       scenario='input',
+                       manual=False):
         """
-        docstring
+        Upload results to cloud storage
         """
-
         client = cloud_client
-
         output_time = datetime.datetime.utcnow().isoformat().split(".")[0]
-
         if manual:
             shutil.copy(
                 "/manual_edits/manual_solution.txt", "/manual_edits/maps/manual_solution.txt")
@@ -82,7 +88,7 @@ class StorageContext(ABC):
 
         else:
             if filenames is None:
-                shutil.copy("solution.txt", "/maps/solution.txt")
+                shutil.copy(file_manager, "/maps/solution.txt")
                 shutil.copy("instructions.txt", "/maps/instructions.txt")
                 shutil.copy("data/config.json", "/maps/config.json")
                 shutil.copy("data/gps_data_clean/dropped_flagged_gps_points.csv", "/maps/dropped_flagged_gps_points.csv")
@@ -108,8 +114,8 @@ class FileDoesNotExistError(Exception):
     pass
 
 class AWSS3Context(StorageContext):
-    def __init__(self, scenario_name, file_manager):
-        super().__init__(file_manager)
+    def __init__(self, scenario_name, file_manager, config_manager):
+        super().__init__(file_manager, config_manager)
         self.bucket_name = os.environ['AWSBUCKETNAME']
         self.service = self.build_service()
         self.scenario_name = scenario_name
@@ -171,9 +177,9 @@ class AWSS3Context(StorageContext):
             print("Error-->", e)
 
 class GoogleDriveContext(StorageContext):
-    def __init__(self, scenario_name, file_manager):
-        super().__init__(file_manager)
-
+    def __init__(self, scenario_name, file_manager, config_manager):
+        super().__init__(file_manager, config_manager)
+        self.file_manager = file_manager
         try:
             customer_file_id = os.environ["GDRIVECUSTOMERFILEID"]
             facility_file_id = os.environ["GDRIVEEXTRAFILEID"]

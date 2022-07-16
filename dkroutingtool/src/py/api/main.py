@@ -15,7 +15,7 @@ from output.route_solution_data import SolutionOutput
 app = Flask(__name__)
 PORT = 5001
 
-@app.route('/route')
+@app.route('/route', methods=['POST'])
 def route():
     root_dir = './'
     config_manager = ConfigManager.load(

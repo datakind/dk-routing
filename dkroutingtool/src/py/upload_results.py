@@ -4,8 +4,10 @@ import shutil
 
 
 
-def upload_results(cloud_client, filenames=None, manual_filenames=None, scenario='input', manual=False):
+def upload_results(cloud_client, scenario='input', manual=False):
     client = cloud_client
+    file_manager = cloud_client.file_manager
+    config_manager = cloud_client.config_manager
 
     output_time = datetime.datetime.utcnow().isoformat().split(".")[0]
 
@@ -19,22 +21,13 @@ def upload_results(cloud_client, filenames=None, manual_filenames=None, scenario
         client.upload_data(to_upload, "output")
 
     else:
-        if filenames is None:
-            shutil.copy("solution.txt", "/maps/solution.txt")
-            shutil.copy("instructions.txt", "/maps/instructions.txt")
-            shutil.copy("data/config.json", "/maps/config.json")
-            shutil.copy("data/gps_data_clean/dropped_flagged_gps_points.csv", "/maps/dropped_flagged_gps_points.csv")
-            shutil.copy("/manual_edits/manual_routes_edits.xlsx", "/maps/manual_routes_edits.xlsx")
-
-        shutil.make_archive(f"{output_time}-{scenario}", "zip", "/maps/")    
-        
+        shutil.make_archive(f"{output_time}-{scenario}", "zip", file_manager.root_output_path)
         to_upload = f"{output_time}-{scenario}.zip"
         client.upload_data(to_upload, "output")
 
-        if manual_filenames is None:
-            manual_filenames = []
-            manual_filenames.extend(glob.glob("/manual_edits/*.csv"))
-            manual_filenames.extend(glob.glob("/manual_edits/*.xlsx"))
+        manual_filenames = []
+        manual_filenames.extend(glob.glob("/manual_edits/*.csv"))
+        manual_filenames.extend(glob.glob("/manual_edits/*.xlsx"))
 
         for manual_filename in manual_filenames:
             client.upload_data(manual_filename, f"{scenario}-manual-input", filename=manual_filename.split('/')[-1])

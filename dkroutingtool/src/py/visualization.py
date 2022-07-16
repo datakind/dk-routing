@@ -4,7 +4,6 @@ import io
 from folium.plugins import BeautifyIcon
 import pandas as pd
 import numpy as np
-from file_config import InstructionsOutput, MapOutput, ManualMapOutput, RouteResponseOutput
 from output.route_solution_data import FinalOptimizationSolution
 from output.visualization_data import FoliumMapOutput, VisualizationData
 from geojson import Feature, MultiLineString, FeatureCollection
@@ -178,14 +177,14 @@ def folium_map(routes, nodes, manual_editing_mode,
     #Allow feature_groups/layers to be toggled
     folium.LayerControl().add_to(f_map)
 
-    if manual_editing_mode:
-        filename = ManualMapOutput(filenamePreString, filenamePostString).get_filename()
-    else:
-        if filenamePostString:
-            # If numeric label Index up by 1 for labeling (start at 1 not 0)
-            if filenamePostString.isnumeric():
-                filenamePostString = str(int(filenamePostString))
-        filename = MapOutput(filenamePreString, filenamePostString).get_filename()
+    # if manual_editing_mode:
+    #     filename = ManualMapOutput(filenamePreString, filenamePostString).get_filename()
+    # else:
+    #     if filenamePostString:
+    #         # If numeric label Index up by 1 for labeling (start at 1 not 0)
+    #         if filenamePostString.isnumeric():
+    #             filenamePostString = str(int(filenamePostString))
+    #     filename = MapOutput(filenamePreString, filenamePostString).get_filename()
 
     # Add the output to the result.
     buff = io.BytesIO()

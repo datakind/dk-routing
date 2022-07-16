@@ -68,3 +68,10 @@ Then get into the docker container and run:
 <br>
 
 ------------------------------------------------------------------------------
+### Running the model with google drive output (for DEVELOPERS)
+You can run the model with google drive by putting your credentials in src/creds/gdrive_creds.json
+
+Then create a version of scripts/run_app.sh with the folder ids filled in (you can access these) by right
+clicking your files in google drive -> copy link -> and extracting the id in the URI.
+
+Then run run_app.sh with the google drive environmental variables.

@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+gdrive_creds.json
+dkroutingtool/src/creds
+
 # C extensions
 *.so
 

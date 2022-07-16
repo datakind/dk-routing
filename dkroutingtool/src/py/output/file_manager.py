@@ -57,14 +57,25 @@ class OutputPathConfig(object):
     map_folder = attr.ib(
         default=Path(MAP_FOLDER)
     )
+    cleaned_dropped_flagged_gps_path = attr.ib(
+        default=Path(GPS_CLEAN_FOLDER, 'dropped_flagged_gps_points.csv')
+    )
+    cleaned_gps_points_path = attr.ib(
+        default=Path(GPS_CLEAN_FOLDER, 'clean_gps_points.csv')
+    )
+    time_and_dist_matrices_folder = attr.ib(
+        default=Path(TIME_DIST_FOLDER)
+    )
 
 class FileManager(object):
 
-    def __init__(self, root_output_path: str, output_config: OutputPathConfig):
+    def __init__(self,
+                 root_output_path: str,
+                 output_config: OutputPathConfig):
         self.root_output_path = pathlib.Path(root_output_path)
         self.output_config = output_config
 
-    def make_path(self, path, filename=None):
+    def make_path(self, path):
         full_path = self.root_output_path / path
         parent = full_path.parents[0]
         FileManager.make_dir_if_not_exist(parent)
