@@ -11,6 +11,7 @@ Require environmental variables are only if we wish to operate from as
 cloud directory, in which case we need access credentials. See run_application.sh.
 
 """
+import logging
 import argparse
 import time
 
@@ -23,77 +24,75 @@ from output.file_manager import FileManager, OutputPathConfig
 from output.cleaned_node_data import CleanedNodeData
 from output import data_persisting
 
+
+logging.getLogger().setLevel(logging.INFO)
 parser = argparse.ArgumentParser(description='DK Routing Tool - route optimization CLI')
 parser.add_argument('--input', dest='scenario', default='input')
 parser.add_argument('--local', dest='cloud', action='store_false')
 parser.add_argument('--manual', dest='manual_mapping_mode', action='store_true')
+parser.add_argument('--manual_input_path', dest='manual_input_path', default=None)
 args = parser.parse_args()
+
+OUTPUT_DATA_DIR = 'WORKING_DATA_DIR/output_data/'
+INPUT_DATA_DIR = 'WORKING_DATA_DIR/input_data/'
+LOCAL_TEST_INPUT_DATA_DIR = 'data/'
 
 def main():
     timestamp = time.strftime("%Y_%m_%d_%H_%M")
-    print(f' *   Model Run Initiated {timestamp} (UTC)')
+    logging.info(f"Model Run Initiated {timestamp} (UTC)")
+
+    # If a path is specified set the manual mode to true.
+    if args.manual_input_path:
+        args.manual_mapping_mode = True
 
     # Setup file manager.
     output_config = OutputPathConfig()
     # Output to this directory.
-    output_path = 'output_' + args.scenario + "_" + timestamp
-    print(f' *   output path: {output_path} (UTC)')
+    output_path = OUTPUT_DATA_DIR + args.scenario + "_" + timestamp
     file_manager = FileManager(output_path, output_config)
 
-    # Setup manual mappings configuration if in manual mode.
-    if args.manual_mapping_mode:
-        manual_edits_config = ManualEditsInputPaths(
-            manual_route_edits=file_manager.output_config.manual_edit_route_xlsx_path,
-            manual_vehicles=file_manager.output_config.manual_edit_vehicles_path,
-            clean_gps_points=file_manager.output_config.manual_edit_gps_path
+    # Initialize the cloud client if we are outputting to cloud directory.
+    should_use_cloud_data = args.cloud
+    cloud_client = None
+    if should_use_cloud_data:
+        local_input_dir = INPUT_DATA_DIR + args.scenario + "_" + timestamp
+        logging.info(f"Downloading cloud input data and storing locally at {local_input_dir}")
+        cloud_client = initialize_cloud_client(args.scenario, file_manager)
+        config_manager = ConfigManager.load_from_cloud(
+            cloud_client, local_input_dir, args.manual_mapping_mode
         )
     else:
-        manual_edits_config = None
+        local_input_dir = LOCAL_TEST_INPUT_DATA_DIR
+        logging.info(f"Loading input from local {local_input_dir}")
+        config_manager = ConfigManager.load_from_local(
+            local_input_dir, args.manual_mapping_mode, args.manual_input_path)
 
-    # Load configuration
-    config_manager = ConfigManager.load(
-        ConfigFileLocations(
-            routing_config_file='data/config.json',
-            build_parameters_file='build_parameters.yml',
-            gps_input_files=GPSInputPaths(
-                gps_file='data/customer_data.xlsx',
-                custom_header_file='data/custom_header.yaml',
-                gps_extra_input_file='data/extra_points.csv'
-            ),
-            manual_edits_input_files=manual_edits_config
-        )
-    )
-
-    # Initialize the cloud client if we are outputting to cloud directory.
-    should_output_to_cloud = args.cloud
-    cloud_client = None
-    if should_output_to_cloud:
-        cloud_client = initialize_cloud_client(
-            args.scenario, args.manual_mapping_mode, file_manager, config_manager)
+    logging.info(f"Config setup: {config_manager}")
 
     # Run either config-based routing or manual mapping.
     if not args.manual_mapping_mode:
-        print(' *   Running Config-based routing.')
+        logging.info('Running Config-based routing.')
         solution, vis_data = run_routing_from_config(config_manager=config_manager)
         data_persisting.persist(solution, file_manager)
         node_data = solution.intermediate_optimization_solution.node_data
         data_persisting.persist(CleanedNodeData(node_data), file_manager)
         data_persisting.persist(vis_data, file_manager)
     else:
-        print(' *   Running Manual Update Script')
+        logging.info('Running Manual Update Script')
         manual_vis_data = manual_viz.run_manual_route_update(config_manager=config_manager)
         data_persisting.persist(manual_vis_data, file_manager)
     data_persisting.persist_config(config_manager, file_manager)
+    logging.info(f"Writing output to {output_path}")
     # Write results to cloud.
-    if should_output_to_cloud:
-        print(' *   Uploading Results to Cloud')
+    if should_use_cloud_data:
+        logging.info('Uploading Results to Cloud')
         upload_results.upload_results(
             cloud_client,
             scenario=args.scenario,
             manual=args.manual_mapping_mode)
 
     # schedule.main(routes_for_mapping_viz, vehicles_viz, metrics)
-    print(f' *   Model Run Complete at {time.strftime("%H:%M:%S")} (UTC)')
+    logging.info(f'Model Run Complete at {time.strftime("%H:%M:%S")} (UTC)')
 
 
 if __name__ == '__main__':

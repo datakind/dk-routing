@@ -20,12 +20,17 @@ class CleanedNodeDataOutput(OutputObjectBase):
 
     def persist(self, file_manager: FileManager):
         node_data = self.data.node_data
-        # Write cleaned nodes to output
-        node_data.write_nodes_to_file(
-            file_manager.make_path(file_manager.output_config.cleaned_gps_points_path),
-            f_path_bad=file_manager.make_path(file_manager.output_config.cleaned_dropped_flagged_gps_path),
-            verbose=True
-        )
+        # Write cleaned nodes to output. Note we write this to two places for legacy purposes
+        paths = [
+            file_manager.output_config.cleaned_gps_points_path,
+            file_manager.output_config.manual_edit_gps_path
+        ]
+        for path in paths:
+            node_data.write_nodes_to_file(
+                file_manager.make_path(path),
+                f_path_bad=file_manager.make_path(file_manager.output_config.cleaned_dropped_flagged_gps_path),
+                verbose=True
+            )
 
         # Write time/dist matrices to file
         # mat_file_config = TimeDistMatOutput(self.post_filename_str)

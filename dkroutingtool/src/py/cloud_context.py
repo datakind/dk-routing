@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 import boto3
 import pandas as pd
 import os
@@ -9,181 +10,32 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 import os.path
-from apiclient import errors
 import json
-import datetime
-import shutil
 
-def initialize_cloud_client(scenario, manual_mapping_mode,
-                            file_manager, config_manager):
-    # First retreive the cloud context environment variable
+def initialize_cloud_client(scenario, file_manager):
     try:
         context = os.environ["CLOUDCONTEXT"]
     except KeyError as e:
         raise Exception('!! No Cloud Context Supplied.. are you trying to run local? (--local) !!', e)
 
-    print(f' *   Using Cloud Contex:  {context}')
-    if context.upper() == 'AWS':
-        cloud_client = AWSS3Context(scenario, file_manager, config_manager)
-    elif context.upper() == 'GDRIVE':
-        cloud_client = GoogleDriveContext(scenario, file_manager, config_manager)
+    logging.info(f'Using Cloud Contex:  {context}')
+    if context.upper() == 'GDRIVE':
+        cloud_client = GoogleDriveContext(scenario, file_manager)
     else:
         raise Exception(f"Context Not Implemented: {context}")
-    cloud_client.get_input_data(manual=manual_mapping_mode)
+
     return cloud_client
 
-class StorageContext(ABC):
-    
-    """
-    Tool storage context base class 
-    """
 
-    def __init__(self, file_manager, config_manager):
-        self.file_manager = file_manager
-        self.config_manager = config_manager
-
-    @abstractmethod
-    def build_service(self, dkocr):
-        """
-        Create connection to whatever storage we are using 
-        """
-
-        pass
-
-    """ Optional APIs """
-
-    def get_input_data(self):
-        """
-        List available models to this driver.
-        """
-
-        raise Exception("Unsupported")
-
-    def upload_data(self):
-        """
-        Train a custom model
-        """
-
-        raise Exception("Unsupported")
-
-    def upload_results(self,
-                       cloud_client,
-                       filenames=None,
-                       manual_filenames=None,
-                       scenario='input',
-                       manual=False):
-        """
-        Upload results to cloud storage
-        """
-        client = cloud_client
-        output_time = datetime.datetime.utcnow().isoformat().split(".")[0]
-        if manual:
-            shutil.copy(
-                "/manual_edits/manual_solution.txt", "/manual_edits/maps/manual_solution.txt")
-
-            shutil.make_archive(f"{output_time}-{scenario}-manual", "zip", "/manual_edits/maps/")
-
-            to_upload = f"{output_time}-{scenario}-manual.zip"
-            client.upload_data(to_upload, "output")
-
-        else:
-            if filenames is None:
-                shutil.copy(file_manager, "/maps/solution.txt")
-                shutil.copy("instructions.txt", "/maps/instructions.txt")
-                shutil.copy("data/config.json", "/maps/config.json")
-                shutil.copy("data/gps_data_clean/dropped_flagged_gps_points.csv", "/maps/dropped_flagged_gps_points.csv")
-                shutil.copy("/manual_edits/manual_routes_edits.xlsx", "/maps/manual_routes_edits.xlsx")
-
-            shutil.make_archive(f"{output_time}-{scenario}", "zip", "/maps/")
-
-            to_upload = f"{output_time}-{scenario}.zip"
-            client.upload_data(to_upload, "output")
-
-            if manual_filenames is None:
-                manual_filenames = []
-                manual_filenames.extend(glob.glob("/manual_edits/*.csv"))
-                manual_filenames.extend(glob.glob("/manual_edits/*.xlsx"))
-
-            for manual_filename in manual_filenames:
-                client.upload_data(manual_filename,
-                                   f"{scenario}-manual-input",
-                                   filename=manual_filename.split('/')[-1])
-        return
-
-class FileDoesNotExistError(Exception):
-    pass
-
-class AWSS3Context(StorageContext):
-    def __init__(self, scenario_name, file_manager, config_manager):
-        super().__init__(file_manager, config_manager)
-        self.bucket_name = os.environ['AWSBUCKETNAME']
-        self.service = self.build_service()
-        self.scenario_name = scenario_name
-        
-    def build_service(self):
-        """Will need proper credential management, probably"""
-
-        try:
-            AWSKEY = os.environ["AWSACCESSKEYID"]
-            SECRET = os.environ["AWSSECRETACCESSKEY"]
-            service = boto3.client(
-                's3',
-                aws_access_key_id=AWSKEY,
-                aws_secret_access_key=SECRET)
-            return service
-        except KeyError:
-            raise Exception("AWS Environment Variables are Not Set or Faulty.")
-
-
-    def get_input_data(self, manual):
-        """Get input data for running the model"""
-
-        filenames = [
-            "customer_data.xlsx",
-            "extra_points.csv",
-            "config.json"]
-
-        for filename in filenames:
-            try:
-                self.service.download_file(self.bucket_name,
-                                       f"{self.scenario_name}/{filename}",
-                                       f"data/{filename}")
-            except Exception:
-                raise FileDoesNotExistError(f'File: {filename} was not found on AWS - check that the file exists and it is in correct S3 Bucket')
-
-        if manual:
-            manual_filenames = [
-                "manual_routes_edits.xlsx",
-                "manual_vehicles.csv",
-                "clean_gps_points.csv"
-                ]
-
-            for manual_filename in manual_filenames:
-                try:
-                    self.service.download_file(self.bucket_name, 
-                                            f"{self.scenario_name}-manual-input/{manual_filename}",
-                                            f"manual_edits/{manual_filename}")
-                except Exception:
-                    raise FileDoesNotExistError(f'File: {manual_filename} was not found on AWS - check that the file exists and it is in correct S3 Bucket')
-
-
-    def upload_data(self, file_to_upload, out_folder, filename=None):
-
-        if filename is None:
-            filename = file_to_upload
-        try:
-            self.service.upload_file(file_to_upload, self.bucket_name, f"{out_folder}/"+filename)
-        except Exception as e:
-            print("Error-->", e)
-
-class GoogleDriveContext(StorageContext):
-    def __init__(self, scenario_name, file_manager, config_manager):
-        super().__init__(file_manager, config_manager)
+class GoogleDriveContext():
+    def __init__(self, scenario_name: str, file_manager):
+        super().__init__()
         self.file_manager = file_manager
         try:
             customer_file_id = os.environ["GDRIVECUSTOMERFILEID"]
             facility_file_id = os.environ["GDRIVEEXTRAFILEID"]
             root_folder_id = os.environ["GDRIVEROOTFOLDERID"]
+            creds_file = os.environ.get("GDRIVECREDSFILE", "gdrive_creds.json")
         except KeyError as e:
             raise Exception('Customer, Facility ID or Root Folder ID not found', e)
 
@@ -197,8 +49,8 @@ class GoogleDriveContext(StorageContext):
                               'https://www.googleapis.com/auth/drive.appdata',
                               'https://www.googleapis.com/auth/drive.scripts',
                               'https://www.googleapis.com/auth/drive.metadata']
-        self.sheet_service = self.build_service('gdrive_creds.json', 'sheets', 'v4', self.SHEET_SCOPES) #Make sure json is there
-        self.drive_service = self.build_service('gdrive_creds.json', 'drive', 'v3', self.DRIVE_SCOPES)
+        self.sheet_service = self.build_service(creds_file, 'sheets', 'v4', self.SHEET_SCOPES) #Make sure json is there
+        self.drive_service = self.build_service(creds_file, 'drive', 'v3', self.DRIVE_SCOPES)
         self.root_folder = root_folder_id
         self.scenario_folder_id = self._get_folder_id_from_name(scenario_name)
 
@@ -215,11 +67,11 @@ class GoogleDriveContext(StorageContext):
             if cred and cred.expired and cred.refresh_token:
                 cred.refresh(Request())
             else:
-                print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                print("YOU NEED TO RE-AUTHORIZE THIS APPLICATION TO USE GDRIVE")
-                print("YOU MAY NEED TO DO THIS TWICE IN A ROW")
-                print("STEP1: Click the link and allow - sign in using an authorizer user for Gdrive")
-                print("Get the authorization code and paste it into the terminal.")
+                logging.warning("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                logging.warning("YOU NEED TO RE-AUTHORIZE THIS APPLICATION TO USE GDRIVE")
+                logging.warning("YOU MAY NEED TO DO THIS TWICE IN A ROW")
+                logging.warning("STEP1: Click the link and allow - sign in using an authorizer user for Gdrive")
+                logging.warning("Get the authorization code and paste it into the terminal.")
                 flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
                 # Note run_console is need because of the docker contain
                 cred = flow.run_console()
@@ -231,52 +83,45 @@ class GoogleDriveContext(StorageContext):
             service = build(api_service_name, api_version, credentials=cred)
             return service
         except Exception as e:
-            print(e)
+            logging.error(e)
         return service
 
-    def get_input_data(self, manual):
+    def download_input_data(self, local_dir):
         """Get input data for running the model"""
-
         # Load Data
         customer_data = self._get_sheet_by_id(self.customer_file_id,
                                               self._update_rangename('Customer Data'))
         facility_data = self._get_sheet_by_id(self.facility_file_id,
                                               self._update_rangename('extra_points'))
         # Save Data
-        customer_data.to_excel('data/customer_data.xlsx', index=False)
-        facility_data.to_csv('data/extra_points.csv', index=False)        
+        customer_data.to_excel(f"{local_dir}/customer_data.xlsx", index=False)
+        facility_data.to_csv(f"{local_dir}/extra_points.csv", index=False)
         config_file_id = self._get_file_id_from_name('config.json', folder_id=self.scenario_folder_id)
-        self._load_and_save_json_file(config_file_id)
- 
-        if manual:
-            source_folder_name = f'{self.scenario_name}-manual-input'
-            source_folder_id = self._get_folder_id_from_name(source_folder_name)
-            self._load_and_save_csv_file(
-                self._get_file_id_from_name('clean_gps_points.csv', 
-                                            folder_id=source_folder_id),
-                                             'clean_gps_points.csv',
-                                             'manual_edits'
-                )
+        self._load_and_save_json_file(config_file_id, local_dir)
 
-            self._load_and_save_csv_file(
-                self._get_file_id_from_name('manual_vehicles.csv', 
-                                            folder_id=source_folder_id),
-                                            'manual_vehicles.csv',
-                                            'manual_edits'
-                )
-
-            self._load_and_save_sheet_file(
-                self._get_file_id_from_name('manual_routes_edits.xlsx', 
-                                            folder_id=source_folder_id),
-                                            'manual_routes_edits.xlsx',
-                                            'manual_edits'
-                )
+    def download_manual_edits_data(self, local_dir):
+        source_folder_name = f'{self.scenario_name}-manual-input'
+        source_folder_id = self._get_folder_id_from_name(source_folder_name)
+        local_dir = f"{local_dir}/manual_edits"
+        os.makedirs(local_dir, exist_ok=True)
+        files = [
+            self.file_manager.output_config.manual_edit_gps_path.name,
+            self.file_manager.output_config.manual_edit_route_xlsx_path.name,
+            self.file_manager.output_config.manual_edit_vehicles_path.name,
+        ]
+        for file in files:
+            logging.info(f"Downloading {file} from {source_folder_name} to {local_dir}")
+            if file.endswith("csv"):
+                dl_fn = self._load_and_save_csv_file
+            else:
+                dl_fn = self._load_and_save_sheet_file
+            dl_fn(
+                self._get_file_id_from_name(file, folder_id=source_folder_id),
+                file,
+                local_dir
+            )
 
     def upload_data(self, file_to_upload, out_folder, filename=None):
-
-        drive_service = self.drive_service
-        sheet_service = self.sheet_service
-
         if filename is None:
             filename = file_to_upload
 
@@ -309,7 +154,7 @@ class GoogleDriveContext(StorageContext):
                                     range=RANGE_NAME).execute()
         values = result.get('values', [])
         if not values:
-            print('No data found.')
+            logging.error('No data found.')
         return pd.DataFrame(values[1:], columns = values[0])
 
     def _create_sheet(self, parent_folder, sheetname):
@@ -353,7 +198,7 @@ class GoogleDriveContext(StorageContext):
             ).execute()
             return response 
         except Exception as e:
-            print(e)
+            logging.error(e)
     
     def _save_data_to_worksheet(self, sheet_id, workbook_name, df):
         service = self.sheet_service
@@ -365,7 +210,7 @@ class GoogleDriveContext(StorageContext):
                 majorDimension='ROWS',
                 values=df.T.reset_index().T.values.tolist())
         ).execute()
-        print('Sheet successfully Updated')
+        logging.info('Sheet successfully Updated')
         return 
         
     def _get_folder_id_from_name(self, folder_name):
@@ -403,7 +248,6 @@ class GoogleDriveContext(StorageContext):
             if page_token:
                 param['pageToken'] = page_token
             files = service.files().list(**param).execute()
-            print(files)
             result.extend(files['files'])
             page_token = files.get('nextPageToken')
             if not page_token:
@@ -427,7 +271,7 @@ class GoogleDriveContext(StorageContext):
                 break
         return None
 
-    def _load_and_save_json_file(self, file_id):
+    def _load_and_save_json_file(self, file_id, local_dir):
         service = self.drive_service
         request = service.files().get_media(fileId=file_id)
         fh = io.BytesIO()
@@ -437,12 +281,13 @@ class GoogleDriveContext(StorageContext):
             status, done = downloader.next_chunk() 
         fh.seek(0)
         config = json.loads(fh.read())
-        with open('data/config.json', 'w') as outfile:
+        with open(f"{local_dir}/config.json", 'w') as outfile:
             json.dump(config, outfile)
         return 
 
     def _load_and_save_csv_file(self, file_id, filename, output='data'):
         service = self.drive_service
+        assert file_id is not None
         request = service.files().get_media(fileId=file_id)
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)

@@ -3,6 +3,7 @@ Main entry point to run routing
 """
 from typing import Tuple
 import time
+import logging
 import build_time_dist_matrix
 import optimization
 import visualization
@@ -19,7 +20,7 @@ def initialize_cloud_client(scenario, manual_mapping_mode):
     except KeyError as e:
         raise Exception('!! No Cloud Context Supplied.. are you trying to run local? (--local) !!', e)
 
-    print(f' *   Using Cloud Contex:  {context}')
+    logging.info(f'Using Cloud Contex:  {context}')
     if context.upper() == 'AWS':
         cloud_client = cloud_context.AWSS3Context(scenario)
     elif context.upper() == 'GDRIVE':
@@ -34,7 +35,7 @@ def run_routing_from_config(config_manager: ConfigManager) -> Tuple[FinalOptimiz
     """Runs
     """
     routing_config = config_manager.get_routing_config()
-    print(' *   Building Time/Distance Matrices')
+    logging.info('Building Time/Distance Matrices')
     # check if node_loader_options are specified
     config = routing_config.get_raw_json()
     if 'node_loader_options' in config.keys():
@@ -49,7 +50,7 @@ def run_routing_from_config(config_manager: ConfigManager) -> Tuple[FinalOptimiz
     if errors:
         raise ValueError("Node validation against config failed:" + '\n'.join(errors))
 
-    print(f' *   Starting Model Run at {time.strftime("%H:%M:%S")} (UTC)')
+    logging.info(f'Starting Model Run at {time.strftime("%H:%M:%S")} (UTC)')
 
     # Check if solver options are specified
     solution = optimization.run_optimization(node_data, config)

@@ -11,6 +11,11 @@ MAP_FOLDER = 'maps'
 MANUAL_EDITS_FOLDER = 'manual_edits'
 MANUAL_MAPS_FOLDER = f"{MANUAL_EDITS_FOLDER}/maps"
 
+# Filenames
+MANUAL_ROUTES_EDITS = 'manual_routes_edits.xlsx'
+MANUAL_VEHICLES = 'manual_vehicles.csv'
+CLEAN_GPS_POINTS = 'clean_gps_points.csv'
+
 @attr.s
 class OutputPathConfig(object):
     solution_path = attr.ib(
@@ -40,16 +45,16 @@ class OutputPathConfig(object):
         default=Path(DATA_FOLDER, 'node_data_pkl.p')
     )
     manual_edit_route_xlsx_path = attr.ib(
-        default=Path(MANUAL_EDITS_FOLDER, 'manual_routes_edits.xlsx')
+        default=Path(MANUAL_EDITS_FOLDER, MANUAL_ROUTES_EDITS)
     )
     manual_edit_vehicles_path = attr.ib(
-        default=Path(MANUAL_EDITS_FOLDER, 'manual_vehicles.csv')
+        default=Path(MANUAL_EDITS_FOLDER, MANUAL_VEHICLES)
     )
     manual_edit_solution_path = attr.ib(
         default=Path(MANUAL_EDITS_FOLDER, 'manual_solution.txt')
     )
     manual_edit_gps_path = attr.ib(
-        default=Path(MANUAL_EDITS_FOLDER, 'clean_gps_points.csv')
+        default=Path(MANUAL_EDITS_FOLDER, CLEAN_GPS_POINTS)
     )
     manual_pickle_node_data_path = attr.ib(
         default=Path(MANUAL_EDITS_FOLDER, 'node_data_pkl.p')

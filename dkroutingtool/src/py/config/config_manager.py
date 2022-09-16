@@ -1,4 +1,8 @@
+import shutil
+
 import attr
+import os
+import logging
 from enum import Enum
 from .routing_configuration import RoutingConfig
 from .build_parameters import BuildParametersConfig
@@ -26,6 +30,70 @@ class ConfigManager(object):
     def __init__(self, loaded_configs, config_file_locations):
         self.configs = loaded_configs
         self.config_file_locations = config_file_locations
+
+    @staticmethod
+    def load_from_cloud(cloud_context, local_dir, manual_mode):
+        # Make local directory.
+        os.makedirs(local_dir, exist_ok=True)
+        # Copy file on disk from custom_header.yaml from data to local_dir.
+        file_name = "custom_header.yaml"
+        to_path = local_dir + "/" + file_name
+        shutil.copy("data/" + file_name, to_path)
+
+        cloud_context.download_input_data(local_dir)
+        if manual_mode:
+            logging.info(f"Downloading manual edits from cloud to {local_dir}")
+            cloud_context.download_manual_edits_data(local_dir)
+            path = f"{local_dir}/manual_edits"
+            manual_edits_input = ManualEditsInputPaths(
+                manual_route_edits=f"{path}/manual_routes_edits.xlsx",
+                manual_vehicles=f"{path}/manual_vehicles.csv",
+                clean_gps_points=f"{path}/clean_gps_points.csv",
+            )
+        else:
+            manual_edits_input = None
+
+        return ConfigManager.load(ConfigFileLocations(
+                routing_config_file=f"{local_dir}/config.json",
+                build_parameters_file='build_parameters.yml',
+                gps_input_files=GPSInputPaths(
+                    gps_file=f"{local_dir}/customer_data.xlsx",
+                    custom_header_file=f"{local_dir}/custom_header.yaml",
+                    gps_extra_input_file=f"{local_dir}/extra_points.csv"
+                ),
+                manual_edits_input_files=manual_edits_input
+            )
+        )
+
+    @staticmethod
+    def load_from_local(local_dir, manual_mode, manual_input_path):
+        if manual_mode:
+            if not manual_input_path:
+                raise Exception("Manual mode requires a path to manual edits input files specified in --manual_input_path.")
+
+            logging.info(f"Manual mode: readings manual data from output {manual_input_path} ")
+            manual_edit_input_paths = ManualEditsInputPaths(
+                manual_route_edits=f"{manual_input_path}/manual_routes_edits.xlsx",
+                manual_vehicles=f"{manual_input_path}/manual_vehicles.csv",
+                clean_gps_points=f"{manual_input_path}/clean_gps_points.csv",
+            )
+        else:
+            manual_edit_input_paths = None
+        return ConfigManager.load(
+            ConfigFileLocations(
+                routing_config_file=f"{local_dir}/config.json",
+                build_parameters_file='build_parameters.yml',
+                gps_input_files=GPSInputPaths(
+                    gps_file=f"{local_dir}/customer_data.xlsx",
+                    custom_header_file=f"{local_dir}/custom_header.yaml",
+                    gps_extra_input_file=f"{local_dir}/extra_points.csv"
+                ),
+                manual_edits_input_files=manual_edit_input_paths
+            )
+        )
+
+    def __repr__(self):
+        return self.config_file_locations.__repr__()
 
     @staticmethod
     def load(config_files: ConfigFileLocations):

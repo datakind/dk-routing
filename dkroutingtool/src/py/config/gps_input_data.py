@@ -1,5 +1,6 @@
 import attr
 import pandas as pd
+import logging
 import ruamel.yaml
 import numpy as np
 import pathlib
@@ -110,7 +111,7 @@ class GPSInputData(object):
         if label_map != None:
             for key,val in label_map.items():
                 if key not in df_gps_all.columns:
-                    print(f'Missing {(key,val)}, adding substition')
+                    logging.info(f'Missing {(key,val)}, adding substition')
                     if val == 'closed':
                         df_gps_all[key] = 0
                     elif val == 'time_windows':

@@ -8,6 +8,7 @@ import os
 import pathlib
 import math
 import pandas as pd
+import logging
 import numpy as np
 import copy
 from config.config_manager import ConfigManager
@@ -350,7 +351,7 @@ class NodeLoader:
         unload_idx = 0
         for zone_config in zone_configs:
             if verbose:
-                print('Zone config', zone_config)
+                logging.info('Zone config', zone_config)
             if zone_config['enable_unload']:
 
                 # Get all possible start / end locations for the vehicles
@@ -395,7 +396,7 @@ class NodeLoader:
 
 
         if verbose:
-            print("Unload depots", unload_depots)
+            logging.info("Unload depots", unload_depots)
 
         if len(unload_depots) > 0:
             unload_to_append = pd.DataFrame(unload_depots)
@@ -413,7 +414,7 @@ class NodeLoader:
 
         #Backfill number of buckets to be max
         self.df_gps_verbose.loc[(self.df_gps_verbose['type'] == 'Customer') & (self.df_gps_verbose['buckets'] == 0), 'buckets'] = num_containers_default
-        print('  *   Num buckets Assumed: ', num_containers_default)
+        logging.info(f"Num buckets Assumed: {num_containers_default}")
 
         #Build the time and distance matrices for all vehicle profiles
         nodes = NodeData(self.df_gps_verbose)
@@ -519,7 +520,7 @@ class NodeLoader:
                 temp_too_far_df = self.df_gps_verbose.drop(index=flagged_indices)
                 self.flag_nodes(temp_too_far_df, 'Flagged - Snapped node location too far from original GPS coordinates.', remove_node=False)
             except:
-                print("Could not remove problematic customer nodes")
+                logging.error("Could not remove problematic customer nodes")
                 
         
         
