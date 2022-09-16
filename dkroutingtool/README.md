@@ -14,7 +14,7 @@ Within this folder (dkroutingtool) run:
 `sh s_build_docker_dev.sh`
 
 
-### Running Model
+### Running Application
 You can run the image interactively with the following:
 
 `sh local_start.sh`
@@ -55,17 +55,17 @@ data otherwise), you can force an osm update by running the following script (be
 <br>
 
 -----------------------------------------------------------
+### File input and output structure
 
-## Other Options
+Running in cloud mode:
+When running using the cloud provider the tool will download all input data from the cloud
+into the local data directory in WORKING_DATA_DIR/input_data/<scenario>-datetime/ folder and
+then read from that directory. All outputs are put into WORKING_DATA_DIR/output_data/<scenario>-datetime/.
+This is then zipped and uploaded to the output/ directory in the root cloud folder.
 
-### Running the Manual Update (Dev)
-Download `manual_routes_edit.xlsx` file from the docker container, edit as needed and copy back into the docker container.
-Then get into the docker container and run:
-
-`PYTHONPATH=./py-lib:src/py /opt/conda/bin/python src/py/main_application.py --local --manual`
-
-<br>
-<br>
+Running in local mode:
+When running locally the tool will read from the data/ directory and write to the same
+WORKING_DATA_DIR/output_data/<scenario>-datetime/ directory. for the output.
 
 ------------------------------------------------------------------------------
 ### Running the model with google drive output (for DEVELOPERS)
@@ -74,4 +74,23 @@ You can run the model with google drive by putting your credentials in src/creds
 Then create a version of scripts/run_app.sh with the folder ids filled in (you can access these) by right
 clicking your files in google drive -> copy link -> and extracting the id in the URI.
 
-Then run run_app.sh with the google drive environmental variables.
+Then you can run it in the docker environment as follows:
+
+export CLOUDCONTEXT=gdrive
+export GDRIVECUSTOMERFILEID=...
+export GDRIVEEXTRAFILEID=...
+export GDRIVEROOTFOLDERID=...
+export GDRIVECREDSFILE=src/creds/gdrive_creds.json
+
+# Local mode
+/opt/conda/bin/python src/py/main_application.py --input test_scenario --local
+
+# Local Manual Mode
+/opt/conda/bin/python src/py/main_application.py --input test_scenario --manual_input_path WORKING_DATA_DIR/output_data/test_scenario_2022_09_16_19_38/manual_edits --local
+
+# Cloud mode
+/opt/conda/bin/python src/py/main_application.py --input test_scenario
+
+# Cloud manual mode
+/opt/conda/bin/python src/py/main_application.py --input test_scenario --manual
+
