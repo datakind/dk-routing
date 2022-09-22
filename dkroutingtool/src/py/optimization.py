@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from attr import attrs, attrib
 import pandas as pd
-import numpy as np
+import logging
 from six.moves import xrange
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
@@ -16,6 +16,7 @@ import time
 from time import strftime, gmtime
 import os
 import traceback
+logging.getLogger().setLevel(logging.INFO)
 
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
@@ -26,7 +27,7 @@ import ujson
 import manual_viz
 import file_config
 from visualization import colorList
-
+from output.route_solution_data import IntermediateOptimizationSolution, FinalOptimizationSolution
 import osrmbindings
 
 osrm_filepath = os.environ['osm_filename']
@@ -47,12 +48,6 @@ color_naming = True
 north_south_ordering = True
 
 verbose = False
-
-@attrs
-class OptimizationSolution(object):
-    route_dict = attrib(type=dict)
-    vehicles = attrib(type=dict)
-    zone_route_map = attrib(type=dict)
 
 def clean_up_time(hour):
     hour = hour.strip()
@@ -307,7 +302,7 @@ class DataProblem():
         self._time_windows = [(self.start_seconds, self.configured_time_horizon) for j in range(self._num_locations)]
         
         # User-provided time windows
-        if config.get('use_time_windows', False):
+        if config and config.get('use_time_windows', False):
             user_time_windows = node_data.get_attr('time_windows')[_boolean_selected]
 
             time_windows_specified = 0
@@ -328,7 +323,7 @@ class DataProblem():
                 self._time_windows = processed_time_windows
         
         if verbose:
-            print('Time windows', self._time_windows)
+            logging.info('Time windows', self._time_windows)
         
         default_load_time_mins = 2.5
         if config is not None:
@@ -474,7 +469,6 @@ class ConsolePrinter():
                 route_load = self.assignment.Value(load_var)
                 route_time += self.data.vehicle[vehicle_id].time_distance_matrix[node_index][next_node_index]
                 time_value = self.assignment.Value(time_var)
-                #print(route_time)
                 #transit_quantity = self.assignment.Value(transit_var)
                 plan_output += ' {0} Load({2}) Time({1:3.3}) Window({3})->'.format(node_index,route_time, route_load, time_value)
                 index = self.assignment.Value(self.routing.NextVar(index))
@@ -493,11 +487,10 @@ class ConsolePrinter():
             plan_output += 'Last window: {0} min\n'.format(time_value)
             
             if verbose:
-                print('Plan output')
-                print(plan_output)
+                logging.info(f"Plan Output: {plan_output}")
         
-        print('Total Distance of all routes: {0}km'.format(total_dist/1000))
-        print('Total Time of all routes: {0}min'.format(total_time))
+        logging.info('Total Distance of all routes: {0}km'.format(total_dist/1000))
+        logging.info('Total Time of all routes: {0}min'.format(total_time))
         return (total_dist, total_time)        
 
 def print_metrics_to_file(route_dict, output_dir, node_data=None, vehicles=None):
@@ -551,7 +544,7 @@ def create_vehicle(node_data, config):
     """
     num_vehicle_type = len(config['trips_vehicle_profile'])
     if verbose:
-        print('Number of vehicle types', num_vehicle_type)
+        logging.info('Number of vehicle types', num_vehicle_type)
     vehicle_profile = config['trips_vehicle_profile']
 
     
@@ -600,12 +593,7 @@ def create_vehicle(node_data, config):
 
 
 def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max_solver_time_min=2, soft_upper_bound_value=0, soft_upper_bound_penalty=0, span_cost_coefficient=0, fast_run=False):
-
-    # print('N_Locations',data.num_locations)
-    # print('Matrix',vehicles[2].time_distance_matrix)
-    #print('subv',soft_upper_bound_value, 'subp', soft_upper_bound_penalty)
-
-    manager = pywrapcp.RoutingIndexManager(int(data.num_locations), 
+    manager = pywrapcp.RoutingIndexManager(int(data.num_locations),
                                         int(data.num_vehicles), 
                                        [int(data.names_to_nodes[i.start]) for i in vehicles],
                                        [int(data.names_to_nodes[i.end]) for i in vehicles])
@@ -781,8 +769,8 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
                 for n in np.where(clusters==cluster)[0]:
                     if (data.demands[n] > 0): 
                         if verbose:
-                            print('Output of deprecated clustering method')
-                            print('-->', n,'veh=', veh_list)
+                            logging.info('Output of deprecated clustering method')
+                            logging.info('-->', n,'veh=', veh_list)
                         routing.SetAllowedVehiclesForIndex(veh_list, manager.NodeToIndex(n)) 
                     # ref https://github.com/google/or-tools/issues/1258
 
@@ -964,7 +952,7 @@ def resequence(node_data, data, routing, routes_all, original_routes, vehicle_pr
             route_df['lat_snapped'] = route_df[f'lat_snapped_{profiles[route_key]}']
             step_size_factor = 0.5
         else:
-            print('Failed to find snapped coordinates while reordering trip sequence.')
+            logging.warning('Failed to find snapped coordinates while reordering trip sequence.')
             
         segments = routes_all[route_key]['geometry']['coordinates']    
         segments = interpolate_segment(segments, step_size_factor)
@@ -1181,7 +1169,7 @@ def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_pr
 
             current_sum = buckets[list(members)+[checking]].sum()
             if current_sum > capacity:
-                print('Breaking large clusters, consider decreasing agg_threshold_radius')
+                logging.info('Breaking large clusters, consider decreasing agg_threshold_radius')
                 break
             
             if checking in chosen:
@@ -1209,7 +1197,7 @@ def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_pr
     fictional_points += starts_ends_indices
     
     if verbose:
-        print("Sprawling node agglomeration results", len(supernodes), len(names), sum([len(supernode) for supernode in supernodes]), [len(supernode) for supernode in supernodes])
+        logging.info("Sprawling node agglomeration results", len(supernodes), len(names), sum([len(supernode) for supernode in supernodes]), [len(supernode) for supernode in supernodes])
     
     new_distances = profile_matrix[fictional_points,:][:,fictional_points]
     new_buckets += [np.nan for _ in starts_ends_indices]
@@ -1279,12 +1267,11 @@ def deconstruct_routes(current_routes, node_data_filtered, data):
     unload_routes = {'fake_routes': fake_routes, 'routes_to_vehicles': routes_to_vehicles, 'starts': starts, 'ends': ends}
     return unload_routes
 
-def solve(node_data, config: str):
+def solve(node_data, config: str) -> IntermediateOptimizationSolution:
     """Solve the route for each zone.
 
     Args:
         config: json route config.
-
     """
     zone_configs = config.get('zone_configs')
     global_solver_options = config.get('global_solver_options')
@@ -1331,7 +1318,7 @@ def solve(node_data, config: str):
         data = DataProblem(node_data_filtered,vehicles,this_config, node_clusters = supernodes)
 
         if (sum(data.demands) > sum([v.capacity for v in vehicles])) and not this_config['enable_unload']:
-            print('number of vehicles specified is not enough', sum(data.demands), sum([v.capacity for v in vehicles]))
+            logging.warning('number of vehicles specified is not enough', sum(data.demands), sum([v.capacity for v in vehicles]))
             continue
 
         #run optimal route script
@@ -1350,7 +1337,7 @@ def solve(node_data, config: str):
             data = DataProblem(node_data_filtered, vehicles, this_config)
             assignment, manager, routing =  get_optimal_route(data, vehicles, warmed_up = full_routes, **solver_options)
             if assignment is None:
-                print("Clustered version did not work, running without it")
+                logging.warning("Clustered version did not work, running without it")
                 assignment, manager, routing =  get_optimal_route(data, vehicles, **solver_options)
 
         if resequencing:
@@ -1365,9 +1352,8 @@ def solve(node_data, config: str):
                 routes_all = produce_temporary_routes(current_routes, [vehicle._osrm_profile for vehicle in vehicles], data)
                 new_assignment = resequence(node_data_filtered, data, routing, routes_all, current_routes, [vehicle._osrm_profile for vehicle in vehicles])
             if new_assignment is not None:
-                print('Reassigned')
                 assignment = new_assignment
-            print(f'Took {time.clock() - resequence_time} seconds to resequence')
+            logging.info(f'Took {time.clock() - resequence_time} seconds to resequence')
 
         printer = ConsolePrinter(data, routing, assignment, manager)
         printer.print()
@@ -1387,7 +1373,8 @@ def solve(node_data, config: str):
         zone_name = zone_name.replace(" ", "")
         zone_route_map[zone_name] = sorted(this_zone_keys)
 
-    return OptimizationSolution(
+    return IntermediateOptimizationSolution(
+        node_data=node_data,
         route_dict=route_dict,
         vehicles=vehicles,
         zone_route_map=zone_route_map
@@ -1410,11 +1397,9 @@ def reorder_route_dict(route_dict):
     print(route_dict)
     return route_dict
 
-def main(node_data, config, output_dir):
-    starting_time = time.time()
 
-    # Solve the routing problem.
-    solution = solve(node_data, config)
+def finalize_route_solution(solution: IntermediateOptimizationSolution, config) -> FinalOptimizationSolution:
+    node_data = solution.node_data
 
     if north_south_ordering:
         averages = {}
@@ -1446,10 +1431,8 @@ def main(node_data, config, output_dir):
         solution_vehicles = solution.vehicles
 
     solution_route_dict = add_display_name(solution_route_dict)
-
-    #Prnt soln to file
-    print_metrics_to_file(solution_route_dict, output_dir, node_data, solution_vehicles)
-
+    solution.route_dict = solution_route_dict
+    
     routes_for_mapping = {}
     route_dict = solution_route_dict
     vehicles = solution_vehicles
@@ -1549,14 +1532,31 @@ def main(node_data, config, output_dir):
                 
 
     #Create output for manual route editing option
-    manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, solution.zone_route_map)
+    #manual_viz.write_manual_output(node_data, routes_for_mapping, vehicles, solution.zone_route_map)
+    return FinalOptimizationSolution(
+        intermediate_optimization_solution=solution,
+        routes_for_mapping=routes_for_mapping,
+        vehicles=vehicles,
+        zone_route_map=solution.zone_route_map
+    )
+
+def run_optimization(node_data, config):
+    """Main entrypoint for optimization"""
+    starting_time = time.time()
+
+    # Solve the routing problem.
+    solution = solve(node_data, config)
+
+    # Finalize the optimization solution.
+    final_optimization = finalize_route_solution(
+        solution=solution,
+        config=config
+    )
+
+    # Logging
     all_zones = [i['optimized_region'] for i in config['zone_configs']]
     run_duration = strftime("%Mmin %Ssec", gmtime(time.time()-starting_time))
-    print('\n')
-    print(80*"#")
-    print(f'Optmization Complete:\n Took {run_duration} to optimize {all_zones}')
-    print(80*"#",'\n')
+    logging.info(f'Optmization Complete: Took {run_duration} to optimize {all_zones}')
 
-  
 
-    return routes_for_mapping, vehicles, solution.zone_route_map
+    return final_optimization

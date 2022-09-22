@@ -2,41 +2,41 @@ import glob
 import datetime
 import shutil
 
-
-
-def main(cloud_client, filenames=None, manual_filenames=None, scenario='input',
-         manual=False):
+def upload_results(cloud_client, scenario='input', manual=False):
     client = cloud_client
+    file_manager = cloud_client.file_manager
 
     output_time = datetime.datetime.utcnow().isoformat().split(".")[0]
 
+    # Create archive with output.
     if manual:
-        shutil.copy(
-            "/manual_edits/manual_solution.txt", "/manual_edits/maps/manual_solution.txt") 
-
-        shutil.make_archive(f"{output_time}-{scenario}-manual", "zip", "/manual_edits/maps/")    
-
+        shutil.make_archive(f"{output_time}-{scenario}-manual", "zip", file_manager.root_output_path)
+        # Upload to zip file with manual extension.
         to_upload = f"{output_time}-{scenario}-manual.zip"
         client.upload_data(to_upload, "output")
-
     else:
-        if filenames is None:
-            shutil.copy("solution.txt", "/maps/solution.txt")
-            shutil.copy("instructions.txt", "/maps/instructions.txt")
-            shutil.copy("data/config.json", "/maps/config.json")
-            shutil.copy("data/gps_data_clean/dropped_flagged_gps_points.csv", "/maps/dropped_flagged_gps_points.csv")
-            shutil.copy("/manual_edits/manual_routes_edits.xlsx", "/maps/manual_routes_edits.xlsx")
-
-        shutil.make_archive(f"{output_time}-{scenario}", "zip", "/maps/")    
-        
+        shutil.make_archive(f"{output_time}-{scenario}", "zip", file_manager.root_output_path)
+        # Upload to zip file.
         to_upload = f"{output_time}-{scenario}.zip"
         client.upload_data(to_upload, "output")
 
-        if manual_filenames is None:
-            manual_filenames = []
-            manual_filenames.extend(glob.glob("/manual_edits/*.csv"))
-            manual_filenames.extend(glob.glob("/manual_edits/*.xlsx"))
+        # Additionally, upload manual edit files to separate folder for easy editing.
+        manual_filenames = []
+        manual_edits_path = file_manager.make_path(
+            file_manager.output_config.manual_edit_route_xlsx_path
+        )
+        manual_vehicle_path = file_manager.make_path(
+            file_manager.output_config.manual_edit_vehicles_path
+        )
+        manual_edit_gps_path = file_manager.make_path(
+            file_manager.output_config.manual_edit_gps_path
+        )
+        manual_filenames.append(manual_edits_path)
+        manual_filenames.append(manual_vehicle_path)
+        manual_filenames.append(manual_edit_gps_path)
 
         for manual_filename in manual_filenames:
-            client.upload_data(manual_filename, f"{scenario}-manual-input", filename=manual_filename.split('/')[-1])
+            # strip directories from file
+            name_only = manual_filename.name
+            client.upload_data(str(manual_filename), f"{scenario}-manual-input", filename=name_only)
 

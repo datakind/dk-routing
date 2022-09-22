@@ -1,11 +1,12 @@
 from turtle import fillcolor
 import folium
+import io
 from folium.plugins import BeautifyIcon
 import pandas as pd
 import numpy as np
-from file_config import InstructionsOutput, MapOutput, ManualMapOutput, RouteResponseOutput
+from output.route_solution_data import FinalOptimizationSolution
+from output.visualization_data import FoliumMapOutput, VisualizationData
 from geojson import Feature, MultiLineString, FeatureCollection
-import geojson as geojson_library
 import ujson
 
 import osrmbindings
@@ -16,7 +17,10 @@ import os
 colorList = sorted(["red","blue","green","orange","purple","yellow","black","pink"])
 
 osrm_filepath = os.environ['osm_filename']
-def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route_names=None, filenamePreString=None, filenamePostString=None, focal_points = 'first_all'):
+def folium_map(routes, nodes, manual_editing_mode,
+               nodes_for_mapping=None, route_names=None,
+               filenamePreString=None, filenamePostString=None,
+               focal_points = 'first_all') -> FoliumMapOutput:
     """Plots vehicles routes on HTML map
     
     Args:
@@ -39,7 +43,7 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
                 and last point of last segment are focal points
         
     Returns:
-        None, saves an HTML file with the Folium map
+        FoliumMapOutput containing html files
     
     """
     
@@ -61,9 +65,9 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
             top_right_lat = max(ys)
     
     # Make an empty map
-    m = folium.Map(location=[0, 0], tiles="OpenStreetMap", zoom_start=12, max_zoom=24)
+    f_map = folium.Map(location=[0, 0], tiles="OpenStreetMap", zoom_start=12, max_zoom=24)
     
-    m.fit_bounds([[bottom_left_lat, bottom_left_long], [top_right_lat, top_right_long]])
+    f_map.fit_bounds([[bottom_left_lat, bottom_left_long], [top_right_lat, top_right_long]])
 
     #add nodes to node_feature
     #include route number for node
@@ -72,7 +76,7 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
         for pair in nodes_for_mapping:
             folium.Marker([pair[0][0], pair[0][1]], popup="Route {}".format(pair[1])).add_to(node_feature)
         #add node_feature to map
-        node_feature.add_to(m)
+        node_feature.add_to(f_map)
     
     # PolyLine accepts a list of (x,y) tuples, where the ith and (ith+1) coordinate
     # are connected by a line segment on the map
@@ -108,7 +112,7 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
                                             customer[2]).add_to(master_layer)
                     cust_index += 1
 
-        master_layer.add_to(m)  # master overlay containing all routes
+        master_layer.add_to(f_map)  # master overlay containing all routes
 
 
     cust_index = 1 # reset cust_index
@@ -168,21 +172,26 @@ def folium_map(routes, nodes, manual_editing_mode, nodes_for_mapping=None, route
                     create_fol_cust_markers(color_map[idx], cust_index, (customer[0],customer[1]), customer[2]).add_to(feature_group)
                     cust_index += 1
                 
-        feature_group.add_to(m)
+        feature_group.add_to(f_map)
 
     #Allow feature_groups/layers to be toggled
-    folium.LayerControl().add_to(m)
+    folium.LayerControl().add_to(f_map)
 
-    if manual_editing_mode:
-        filename = ManualMapOutput(filenamePreString, filenamePostString).get_filename()
-    else:
-        if filenamePostString:
-            # If numeric label Index up by 1 for labeling (start at 1 not 0)
-            if filenamePostString.isnumeric():
-                filenamePostString = str(int(filenamePostString))
-        filename = MapOutput(filenamePreString, filenamePostString).get_filename()
-    m.save(filename)
+    # if manual_editing_mode:
+    #     filename = ManualMapOutput(filenamePreString, filenamePostString).get_filename()
+    # else:
+    #     if filenamePostString:
+    #         # If numeric label Index up by 1 for labeling (start at 1 not 0)
+    #         if filenamePostString.isnumeric():
+    #             filenamePostString = str(int(filenamePostString))
+    #     filename = MapOutput(filenamePreString, filenamePostString).get_filename()
 
+    # Add the output to the result.
+    buff = io.BytesIO()
+    f_map.save(buff, close_file=False)
+    return FoliumMapOutput(prefix=filenamePreString,
+                           suffix=filenamePostString,
+                           map_html_output=buff.getvalue())
 
 def create_fol_cust_markers(border_color, marker_text, loc, pop_up):
     ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, icon_shape='marker')
@@ -252,9 +261,9 @@ def custom_sort(to_sort):
             return sorted(to_sort)
         else:
             return sorted(to_sort)
-            return sorted(to_sort, key=lambda x: (int(x.split('-')[0]), x.split('-')[1]) if '-' in x else (int(x), 0))
+            #return sorted(to_sort, key=lambda x: (int(x.split('-')[0]), x.split('-')[1]) if '-' in x else (int(x), 0))
 
-def save_geojson(mapping_routes, manual_editing_mode):
+def get_route_geojson(mapping_routes):
     full_collection = []
     for key in mapping_routes:
         route = mapping_routes[key]
@@ -263,13 +272,7 @@ def save_geojson(mapping_routes, manual_editing_mode):
         route_feature = Feature(geometry=route, properties={'id':key})
         full_collection.append(route_feature)
 
-    to_geojson = FeatureCollection(full_collection)
-    output_filename = 'route_geojson.geojson'
-    if manual_editing_mode:
-        output_filename = 'route_geojson_manual.geojson'
-    print("SAVING",output_filename)
-    with open(output_filename, 'w') as output_file:
-        geojson_library.dump(to_geojson, output_file)
+    return FeatureCollection(full_collection)
 
 def df_to_geojson(df, properties, lat='latitude', lon='longitude'):
     geojson = {'type':'FeatureCollection', 'features':[]}
@@ -284,7 +287,7 @@ def df_to_geojson(df, properties, lat='latitude', lon='longitude'):
         geojson['features'].append(feature)
     return geojson
 
-def save_nodes_geojson(nodes, manual_editing_mode):
+def get_nodes_geojson(nodes):
     routes=[]
     for k in nodes:
         add_key = [list(i)+[k] for i in nodes[k]]
@@ -293,18 +296,26 @@ def save_nodes_geojson(nodes, manual_editing_mode):
     out_nodes = pd.DataFrame([[i[0], i[1], i[2][0], i[-1]] for i in routes], columns=['lat', 'lng', 'name', 'zone'])
     out_nodes.loc[:, 'sequence'] = out_nodes.groupby('zone').cumcount()+1
     out_nodes_geojson = df_to_geojson(out_nodes, out_nodes.columns, lat='lat', lon='lng')  
+    return out_nodes_geojson
 
-    output_filename = 'node_geojson.geojson'
-    if manual_editing_mode:
-        output_filename = 'node_geojson_manual.geojson'
-    print("SAVING", output_filename)
-    with open(output_filename, 'w') as output_file:
-        geojson_library.dump(out_nodes_geojson, output_file) 
-    
-def main(routes_for_mapping, vehicles,
-         zone_route_map=None, route_map_name=None,
-         manual_editing_mode=False, output_dir='.'):
-    
+def create_visualizations(solution: FinalOptimizationSolution,
+                          manual_editing_mode=False) -> VisualizationData:
+    """ Create visualizations from route solution.
+    This includes:
+        1. HTML maps
+        2. Turn-by-turn directions
+        3. route geojson files
+
+    Args:
+      solution: Solution from optimization.py
+    Returns:
+      All visualization data as a VisualizationData object.
+    """
+    # Get data out of solution.
+    routes_for_mapping = solution.routes_for_mapping
+    vehicles = solution.vehicles
+    zone_route_map = solution.zone_route_map
+
     # Create and save folium map as an HTML file
     osrm_routes_dict = {}
     #save route legs as well for individual maps
@@ -324,6 +335,11 @@ def main(routes_for_mapping, vehicles,
         nodes[i] = []
 
     sorted_keys = custom_sort(routes_for_mapping.keys())
+    # Responses by route id.
+    responses_by_route_id = {}
+    # Instructions by route id.
+    instructions_by_route_id = {}
+
     for route_id in sorted_keys:
         route = routes_for_mapping[route_id]
         longitudes = []
@@ -344,16 +360,9 @@ def main(routes_for_mapping, vehicles,
         response = osrmbindings.route(longitudes, latitudes)
     
         parsed = ujson.loads(response)
-        with open(RouteResponseOutput().get_filename(output_dir),  "a") as json_file_output:
-            ujson.dump(response, json_file_output)
 
-        instructions = osrm_text_instructions.get_instructions(parsed)
-        with open(InstructionsOutput().get_filename(output_dir),  "a") as opened:
-            opened.write(f"Trip: {route_id}\n")
-            for instruction in instructions:
-                opened.write(instruction)
-                opened.write("\n")
-            opened.write("\n")
+        responses_by_route_id[route_id] = response
+        instructions_by_route_id[route_id] = osrm_text_instructions.get_instructions(parsed)
 
         try:
             geojson = parsed["routes"][0]["geometry"] # Ignores alternatives if some are even passed
@@ -377,11 +386,11 @@ def main(routes_for_mapping, vehicles,
             print("Exception In Creating Visualizaton")
             continue # hacky for now but let's just avoid showstoppers
 
-
-    save_geojson(osrm_routes_dict, manual_editing_mode)
-    save_nodes_geojson(nodes, manual_editing_mode)
     ## Map all the routes on one map ##
-    folium_map(osrm_routes_dict, nodes, manual_editing_mode, nodes_for_mapping, route_names, filenamePreString = route_map_name)
+    maps = []
+    maps.append(
+        folium_map(osrm_routes_dict, nodes, manual_editing_mode, nodes_for_mapping, route_names)
+    )
 
     ## Zone Maps ## 
     # If specified, create a map for each zone
@@ -395,7 +404,9 @@ def main(routes_for_mapping, vehicles,
                 this_zone_osrm_routes[route]=osrm_routes_dict[route]
                 this_zone_route_names[route] = route_names[route]
                 
-            folium_map(this_zone_osrm_routes, this_zone_nodes, manual_editing_mode, nodes_for_mapping=None, route_names=this_zone_route_names, filenamePostString = zone_name)
+            maps.append(
+                folium_map(this_zone_osrm_routes, this_zone_nodes, manual_editing_mode, nodes_for_mapping=None, route_names=this_zone_route_names, filenamePostString = zone_name)
+            )
     
     ## Individual Route Maps ##
     #Construct the individual route maps for each round-trip route
@@ -444,10 +455,20 @@ def main(routes_for_mapping, vehicles,
             segment_routes_dict[idx+1] = seg
 
         #construct a map for each route
-        folium_map(segment_routes_dict, segment_nodes, manual_editing_mode, filenamePostString=str(k), focal_points = 'first_last_only')
-        
+        maps.append(
+            folium_map(segment_routes_dict, segment_nodes, manual_editing_mode, filenamePostString=str(k), focal_points = 'first_last_only')
+        )
 
-
+    route_geojson_data = get_route_geojson(osrm_routes_dict)
+    node_geojson_data = get_route_geojson(osrm_routes_dict)
+    return VisualizationData(
+        route_responses=responses_by_route_id,
+        instructions=instructions_by_route_id,
+        folium_map_data=maps,
+        manual_editing_mode=manual_editing_mode,
+        node_geojson=node_geojson_data,
+        route_geojson=route_geojson_data,
+    )
     # Create and save a js file containing geojson
     # with route geometry
     #create_geojson(assignment, routing, data)
