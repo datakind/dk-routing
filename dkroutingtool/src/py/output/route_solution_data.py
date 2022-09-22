@@ -49,7 +49,10 @@ class SolutionOutput(OutputObjectBase):
 
         plan_output = ''
         for route_id, route in route_dict.items():
-            plan_output += 'Route ID {0}'.format(route_id+1)
+            if 'display_name' in route:
+                plan_output += 'Route ID {0}'.format(route['display_name'])
+            else:
+                plan_output += 'Route ID {0}'.format(route_id+1)
             if vehicles != None:
                 plan_output += ', ' + vehicles[route_id].name + ':\n'
             else:

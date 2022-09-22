@@ -1431,7 +1431,8 @@ def finalize_route_solution(solution: IntermediateOptimizationSolution, config) 
         solution_vehicles = solution.vehicles
 
     solution_route_dict = add_display_name(solution_route_dict)
-
+    solution.route_dict = solution_route_dict
+    
     routes_for_mapping = {}
     route_dict = solution_route_dict
     vehicles = solution_vehicles
