@@ -1,4 +1,4 @@
-# Routing Optimization Tool formerly known as DataKind Routing Tool
+# Container-based Action Routing Tool (CART) formerly known as DataKind Routing Tool
 
 More description and instructions to come. A readme in dkroutingtool can get users started.
 
