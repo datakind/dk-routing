@@ -23,6 +23,7 @@ from config.config_manager import ConfigManager, ConfigFileLocations, GPSInputPa
 from output.file_manager import FileManager, OutputPathConfig
 from output.cleaned_node_data import CleanedNodeData
 from output import data_persisting
+from geojson_to_gpx_converter import geojson_to_gpx_converter
 
 
 logging.getLogger().setLevel(logging.INFO)
@@ -77,6 +78,7 @@ def main():
         node_data = solution.intermediate_optimization_solution.node_data
         data_persisting.persist(CleanedNodeData(node_data), file_manager)
         data_persisting.persist(vis_data, file_manager)
+        geojson_to_gpx_converter(output_path,output_path)
     else:
         logging.info('Running Manual Update Script')
         manual_vis_data = manual_viz.run_manual_route_update(config_manager=config_manager)
