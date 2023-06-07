@@ -78,11 +78,12 @@ def main():
         node_data = solution.intermediate_optimization_solution.node_data
         data_persisting.persist(CleanedNodeData(node_data), file_manager)
         data_persisting.persist(vis_data, file_manager)
-        geojson_to_gpx_converter(output_path,output_path)
+        geojson_to_gpx_converter(output_path, output_path)
     else:
         logging.info('Running Manual Update Script')
         manual_vis_data = manual_viz.run_manual_route_update(config_manager=config_manager)
         data_persisting.persist(manual_vis_data, file_manager)
+        geojson_to_gpx_converter(output_path, output_path)
     data_persisting.persist_config(config_manager, file_manager)
     logging.info(f"Writing output to {output_path}")
     # Write results to cloud.

@@ -32,8 +32,8 @@ def geojson_to_gpx_converter(geojson_file_path : str, output_path : str):
     for dictionary in data['features']:
         
         for coordinates in dictionary['geometry']['coordinates'][0]:
-            new_df['lat'].append(coordinates[0])
-            new_df['lon'].append(coordinates[1])
+            new_df['lon'].append(coordinates[0])
+            new_df['lat'].append(coordinates[1])
             new_df['properties'].append(dictionary['properties']['id'])
             # print(coordinates)
 
@@ -42,6 +42,4 @@ def geojson_to_gpx_converter(geojson_file_path : str, output_path : str):
     # Creating GPX file and csv file for each property present in the JSON object
     for idx, dataframe in new_df.groupby('properties'):
         dataframe.to_csv(f'{output_path}/{idx}-input.csv')
-        Converter(input_file=f'{output_path}/{idx}-input.csv').csv_to_gpx(lats_colname='lat',longs_colname='lon',output_file=f'{output_path}/{idx}-ouput.gpx')
-        
-        
+        Converter(input_file=f'{output_path}/{idx}-input.csv').csv_to_gpx(lats_colname='lat',longs_colname='lon',output_file=f'{output_path}/{idx}-output.gpx')
