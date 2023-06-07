@@ -38,7 +38,7 @@ class GoogleDriveContext():
             creds_file = os.environ.get("GDRIVECREDSFILE", "gdrive_creds.json")
         except KeyError as e:
             raise Exception('Customer, Facility ID or Root Folder ID not found', e)
-
+        print(creds_file)
         self.customer_file_id = customer_file_id
         self.facility_file_id = facility_file_id
         self.scenario_name = scenario_name
@@ -96,7 +96,9 @@ class GoogleDriveContext():
         # Save Data
         customer_data.to_excel(f"{local_dir}/customer_data.xlsx", index=False)
         facility_data.to_csv(f"{local_dir}/extra_points.csv", index=False)
+        print(self.scenario_folder_id, 'scenario id')
         config_file_id = self._get_file_id_from_name('config.json', folder_id=self.scenario_folder_id)
+        print(config_file_id)
         self._load_and_save_json_file(config_file_id, local_dir)
 
     def download_manual_edits_data(self, local_dir):
