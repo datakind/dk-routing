@@ -18,14 +18,18 @@ PORT = 5001
 @app.route('/route', methods=['POST'])
 def route():
     root_dir = './'
+
+    customer_data_xlsx = pd.read_excel(request.files['customer_data'])
+    extra_points_csv = pd.read_csv(request.files['extra_points'])
+
     config_manager = ConfigManager.load(
         ConfigFileLocations(
             routing_config_file=f"{root_dir}/data/config.json",
             build_parameters_file=f"{root_dir}build_parameters.yml",
             gps_input_files=GPSInputPaths(
-                gps_file=f"{root_dir}data/customer_data.xlsx",
+                gps_file=customer_data_xlsx,
                 custom_header_file=f"{root_dir}data/custom_header.yaml",
-                gps_extra_input_file=f"{root_dir}data/extra_points.csv"
+                gps_extra_input_file=extra_points_csv
             ),
             manual_edits_input_files=None
         )
