@@ -8,4 +8,5 @@ docker run -it  \
     -e GDRIVECUSTOMERFILEID=$(yq e '.Run.gdrive.customer_data_id' build_parameters.yml) \
     -e GDRIVEEXTRAFILEID=$(yq e '.Run.gdrive.facility_data_id' build_parameters.yml) \
     -p 8080:8080 \
+    -p 5001:5001 \
     dkroutingtool:dev bash
