@@ -22,9 +22,9 @@ class OutputPathConfig(object):
     route_response_path = attr.ib(
         default=OutputFile(ROOT_OUTPUT_FOLDER, 'route_response.json')
     )
-    instructions_path = attr.ib(
-        default=OutputFile(ROOT_OUTPUT_FOLDER, 'instructions.txt')
-    )
+    #instructions_path = attr.ib(
+    #    default=OutputFile(ROOT_OUTPUT_FOLDER, 'instructions.txt')
+    #)
     pickle_node_data_path = attr.ib(
         default=OutputFile(DATA_FOLDER, 'node_data_pkl.p')
     )

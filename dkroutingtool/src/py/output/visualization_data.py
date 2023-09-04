@@ -16,7 +16,7 @@ class FoliumMapOutput(object):
 @attr.s
 class VisualizationData(object):
     route_responses = attrib(type=Dict[int, str])
-    instructions = attrib(type=Dict[int, str])
+    #instructions = attrib(type=Dict[int, str])
     folium_map_data = attrib(type=List[FoliumMapOutput])
     route_geojson = attrib()
     node_geojson = attrib()
@@ -28,7 +28,7 @@ class VisualizationOutput(OutputObjectBase):
         self.data = data
 
     def persist(self, file_manager: FileManager):
-        self.persist_instructions(file_manager)
+        #self.persist_instructions(file_manager)
         self.persist_map_html(file_manager)
         self.persist_node_geojson(file_manager)
         self.persist_route_geojson(file_manager)

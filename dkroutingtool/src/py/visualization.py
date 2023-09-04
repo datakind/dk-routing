@@ -11,7 +11,7 @@ import ujson
 
 import osrmbindings
 
-import osrm_text_instructions
+#import osrm_text_instructions
 import os
 
 colorList = sorted(["red","blue","green","orange","purple","yellow","black","pink"])
@@ -362,7 +362,7 @@ def create_visualizations(solution: FinalOptimizationSolution,
         parsed = ujson.loads(response)
 
         responses_by_route_id[route_id] = response
-        instructions_by_route_id[route_id] = osrm_text_instructions.get_instructions(parsed)
+        #instructions_by_route_id[route_id] = osrm_text_instructions.get_instructions(parsed)
 
         try:
             geojson = parsed["routes"][0]["geometry"] # Ignores alternatives if some are even passed
@@ -463,7 +463,7 @@ def create_visualizations(solution: FinalOptimizationSolution,
     node_geojson_data = get_route_geojson(osrm_routes_dict)
     return VisualizationData(
         route_responses=responses_by_route_id,
-        instructions=instructions_by_route_id,
+        #instructions=instructions_by_route_id,
         folium_map_data=maps,
         manual_editing_mode=manual_editing_mode,
         node_geojson=node_geojson_data,
