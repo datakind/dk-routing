@@ -3,6 +3,8 @@
 
 The only vehicle profiles available are the ones defined in the directory `veh_profiles`, so make sure to have at least one profile there before building the solution. Feel free to add your own profiles as needed.
 
+Draft of a user manual: https://docs.google.com/document/d/1iOlXQk6_ElM_LdawJPREHNjVkv_2Qajam3is2hm5zyM
+
 ## Dev
 
 ### Build
