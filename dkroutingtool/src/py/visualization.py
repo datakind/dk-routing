@@ -460,7 +460,7 @@ def create_visualizations(solution: FinalOptimizationSolution,
         )
 
     route_geojson_data = get_route_geojson(osrm_routes_dict)
-    node_geojson_data = get_route_geojson(osrm_routes_dict)
+    node_geojson_data = get_nodes_geojson(nodes)
     return VisualizationData(
         route_responses=responses_by_route_id,
         #instructions=instructions_by_route_id,
