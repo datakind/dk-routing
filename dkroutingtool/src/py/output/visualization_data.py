@@ -7,6 +7,8 @@ from .output_object_base import OutputObjectBase
 from .file_manager import FileManager
 from attr import attrs, attrib
 
+json_included = True
+
 @attr.s
 class FoliumMapOutput(object):
     map_html_output = attrib(type=bytes)
@@ -30,9 +32,10 @@ class VisualizationOutput(OutputObjectBase):
     def persist(self, file_manager: FileManager):
         #self.persist_instructions(file_manager)
         self.persist_map_html(file_manager)
-        self.persist_node_geojson(file_manager)
-        self.persist_route_geojson(file_manager)
-        self.persist_route_response(file_manager)
+        if json_included:
+            self.persist_node_geojson(file_manager)
+            self.persist_route_geojson(file_manager)
+            self.persist_route_response(file_manager)
 
     def persist_map_html(self, file_manager: FileManager):
         if self.data.manual_editing_mode:
