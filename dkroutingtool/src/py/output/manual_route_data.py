@@ -4,6 +4,7 @@ from .file_manager import FileManager
 from .visualization_data import VisualizationData, VisualizationOutput
 from .route_solution_data import FinalOptimizationSolution, SolutionOutput
 from attr import attrs, attrib
+from .output_utils import write_to_spreadsheet
 
 @attr.s
 class ManualRouteData(object):
@@ -19,6 +20,11 @@ class ManualRouteDataOutput(OutputObjectBase):
     def persist(self, file_manager: FileManager):
         """Write all Manual Route data to disk."""
         self.persist_manual_solution(file_manager)
+
+        zone_route_map = self.data.modified_optimization_solution.zone_route_map
+        routes_for_mapping = self.data.modified_optimization_solution.routes_for_mapping
+        write_to_spreadsheet(zone_route_map, routes_for_mapping, file_manager)
+        
         # Delegate to persist visualization data.
         VisualizationOutput(self.data.modified_visualizations).persist(file_manager)
 

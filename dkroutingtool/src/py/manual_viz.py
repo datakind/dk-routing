@@ -77,19 +77,28 @@ def run_manual_route_update(config_manager: ConfigManager) -> ManualRouteData:
         #iterate through the df to create routes_for_mapping
         manual_dataframe = manual_routes.parse(sheet)
         manual_dataframe = manual_dataframe[manual_dataframe['route'] != 'Summary']
+        current_load = 0
         for index, row in manual_dataframe.iterrows():
             row_key = str(row['route'])
             #if route doesn't exist in routes_for_mapping, add it
             if row_key not in routes_for_mapping.keys():
                 routes_for_mapping[row_key] = []
                 zone_route_map[sheet].append(row_key)
-                
+                current_load = 0
             #Reconstruct the array as it was before manual editing
             #pick the lat/long and additional info from the node data file
             this_entry_nodedata = node_data.filter_nodedata({'name': row['node_name']})
             rfm_entry = [(this_entry_nodedata.lat_long_coords[0][0], this_entry_nodedata.lat_long_coords[0][1])]
             rfm_entry.append((row['node_name'], this_entry_nodedata.get_attr('additional_info')[0]))
             
+            demand = this_entry_nodedata.get_attr('buckets')[0]
+            
+            rfm_entry.append(current_load)
+            rfm_entry.append(demand)
+            if demand >= 0:
+                current_load += demand
+            # example: route_dict[vehicle_id]['loads'][i], route_dict[vehicle_id]['demands'][i]))
+
             #Add the node to the appropriate route
             routes_for_mapping[row_key].append(rfm_entry)
             
