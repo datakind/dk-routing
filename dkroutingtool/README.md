@@ -7,6 +7,17 @@ The only vehicle profiles available are the ones defined in the directory `veh_p
 
 Draft of a user manual: https://docs.google.com/document/d/1iOlXQk6_ElM_LdawJPREHNjVkv_2Qajam3is2hm5zyM
 
+### Server API example
+docker run --network host dkroutingtool:dev /opt/conda/bin/python src/py/server.py
+
+curl -X "POST" "localhost:5001/provide_files" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "files=@local_data/config.json"
+
+curl http://localhost:5001/get_solution
+
+curl -o download.zip http://localhost:5001/download
+
+curl -X "POST" "localhost:5001/adjust_solution" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "files=@download/manual_edits/manual_routes_edits.xlsx"
+
 ## Dev
 
 ### Build
