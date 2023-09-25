@@ -20,7 +20,7 @@ ARG osm_filename_arg
 
 ENV osm_filename $osm_filename_arg
 
-RUN wget --no-check-certificate $osm_download_url
+RUN wget -O "$osm_filename_arg.osm.pbf" --no-check-certificate $osm_download_url
 
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh
 
@@ -66,12 +66,6 @@ RUN apt-get update
 
 RUN apt-get -y install curl gnupg2
 
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
-
-RUN apt-get -y install nodejs
-
-RUN npm install osrm-text-instructions
-
 RUN mkdir data
 
 RUN mkdir data/gps_data_clean
@@ -99,6 +93,8 @@ COPY manual.sh .
 RUN mkdir -p py-lib
 
 RUN mv osrm-backend/example/build/osrmbindings.cpython-37m-x86_64-linux-gnu.so py-lib/
+
+RUN pip uninstall -y typing-extensions && pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
 
 COPY src src
 

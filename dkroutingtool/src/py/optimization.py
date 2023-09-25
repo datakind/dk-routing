@@ -1393,7 +1393,7 @@ def add_display_name(route_dict):
 def reorder_route_dict(route_dict):
     '''Tries to keep a reliable ordering, from North to South given the average gps 
     locations of the nodes on the route.
-    Not used yet'''
+    Not used yet, need to break away logic elsewhere, look up the north_south_ordering code branch'''
     print(route_dict)
     return route_dict
 
@@ -1447,7 +1447,7 @@ def finalize_route_solution(solution: IntermediateOptimizationSolution, config) 
     
     display_dict = {str(key+1) : route_dict[key]['display_name'] for key in route_dict}
 
-    # Index up everything for visualizaiton purposes 
+    # Index up everything for visualization purposes 
     def index_up_dict(my_dict):
         return {str(k+1): my_dict[k] for k in my_dict}
 

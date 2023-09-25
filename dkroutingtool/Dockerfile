@@ -6,7 +6,7 @@ ARG osm_filename_arg
 
 ENV osm_filename $osm_filename_arg
 
-RUN wget $osm_download_url
+RUN wget -O "$osm_filename_arg.osm.pbf" --no-check-certificate $osm_download_url
 
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh
 
@@ -64,11 +64,7 @@ RUN apt-get update
 
 RUN apt-get -y install curl gnupg2
 
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
-
-RUN apt-get -y install nodejs
-
-RUN npm install osrm-text-instructions
+RUN pip uninstall -y typing-extensions && pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
 
 COPY /local_data/custom_header.yaml data/.
 
