@@ -8,9 +8,9 @@ The only vehicle profiles available are the ones defined in the directory `veh_p
 Draft of a user manual: https://docs.google.com/document/d/1iOlXQk6_ElM_LdawJPREHNjVkv_2Qajam3is2hm5zyM
 
 ### Server API example
-docker run --network host dkroutingtool:dev /opt/conda/bin/python src/py/server.py
+docker run --network host dkroutingtool:latest /opt/conda/bin/python src/py/server.py
 
-curl -X "POST" "localhost:5001/provide_files" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "files=@local_data/config.json"
+curl -X "POST" "localhost:5001/provide_files" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "files=@local_data/config.json" -F "files=@local_data/customer_data.xlsx"
 
 curl http://localhost:5001/get_solution
 
