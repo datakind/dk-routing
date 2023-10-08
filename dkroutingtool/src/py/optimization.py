@@ -565,7 +565,7 @@ def create_vehicle(node_data, config):
         # If we are using unloads then the vehicle creation is different
         vehicles_details = config['unload_vehicles']
         vehicles = []
-        for vec in vehicles_details:   #, "Dibout , 3 Wheeler, Cap 81"
+        for vec in vehicles_details:   #, "Zone , 3 Wheeler, Cap 81"
             _time_distance = node_data.get_time_or_dist_mat(veh = vec[0], time_or_dist='time')[_boolean_selected][:,_boolean_selected]   
             _travel_distance = node_data.get_time_or_dist_mat(veh = vec[0], time_or_dist='dist')[_boolean_selected][:,_boolean_selected]
             metadata = f"{'-'.join(config['optimized_region'])} , {vec[0]}, Cap {vec[1]}"
@@ -582,6 +582,7 @@ def create_vehicle(node_data, config):
         for vec in range(num_vehicle_type): # TODO - if there are multiple vehicle types then we create a lot of extra vehicles
             _time_distance = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='time')[_boolean_selected][:,_boolean_selected]   
             _travel_distance = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='dist')[_boolean_selected][:,_boolean_selected]
+            
             # Create some summary info for display purposes on maps
             metadata = f"{'-'.join(config['optimized_region'])} , {vehicle_profile[vec][0]}, Cap {vehicle_profile[vec][1]}"
             vehicles = vehicles + [
@@ -616,10 +617,10 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
             from_node = manager.IndexToNode(from_index)
             to_node = manager.IndexToNode(to_index)
             
-            total_service_time = service_time
+            total_service_time = service_time # adjust when config suggests the number of containers increases the load time (and think about supernodes/clusters too)
             if clusters and from_node not in points:
                 cluster = clusters[from_node]
-                total_service_time = int(len(cluster)*(service_time + agg_threshold_radius))
+                total_service_time = int(len(cluster)*(service_time + agg_threshold_radius)) # supernodes are cluster of nearby locations and we're adding the typical amount of travel time between the locations which is the aggregation radius
             
             travel_time = 0
             if from_node == to_node:
@@ -1393,7 +1394,7 @@ def add_display_name(route_dict):
 def reorder_route_dict(route_dict):
     '''Tries to keep a reliable ordering, from North to South given the average gps 
     locations of the nodes on the route.
-    Not used yet, need to break away logic elsewhere, look up the north_south_ordering code branch'''
+    Not used yet'''
     print(route_dict)
     return route_dict
 
@@ -1447,7 +1448,7 @@ def finalize_route_solution(solution: IntermediateOptimizationSolution, config) 
     
     display_dict = {str(key+1) : route_dict[key]['display_name'] for key in route_dict}
 
-    # Index up everything for visualization purposes 
+    # Index up everything for visualizaiton purposes 
     def index_up_dict(my_dict):
         return {str(k+1): my_dict[k] for k in my_dict}
 
