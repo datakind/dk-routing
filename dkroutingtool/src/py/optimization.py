@@ -47,6 +47,8 @@ max_time_horizon = 24*60*60
 color_naming = True
 north_south_ordering = True
 
+consider_elevation = True # we will put that in the config
+
 verbose = False
 
 def clean_up_time(hour):
@@ -165,13 +167,14 @@ def get_last_time(data, manager, routing, assignment):
 
 class Vehicle():
     """Stores the property of a vehicle"""
-    def __init__(self, time_distance=None, travel_distance=None,
+    def __init__(self, time_distance=None, travel_distance=None, elevation_cost=None,
                  capacity=45, name=None, osrm_profile=None,
                  start=None, end=None):
         """Initializes the vehicle properties"""
         self._capacity = capacity
         self._time_distance = time_distance
         self._travel_distance = travel_distance
+        self._elevation_cost = elevation_cost
         self._name = name
         self._osrm_profile = osrm_profile
         self._start = start
@@ -191,6 +194,11 @@ class Vehicle():
     def travel_distance_matrix(self):
         """time matrices from node to node"""
         return self._travel_distance
+
+    @property
+    def elevation_cost_matrix(self):
+        """time + elevation costs matrices from node to node"""
+        return self._elevation_cost
 
     @property
     def name(self):
@@ -252,6 +260,8 @@ class DataProblem():
         self._demands = node_data.get_attr('buckets')[_boolean_selected]
         self._distance = node_data.get_time_or_dist_mat(veh=vehicle[0].osrm_profile, time_or_dist='dist')[_boolean_selected][:,_boolean_selected]
         self._time_distance = node_data.get_time_or_dist_mat(veh=vehicle[0].osrm_profile, time_or_dist='time')[_boolean_selected][:,_boolean_selected]
+        self._elevation_cost = node_data.get_time_or_dist_mat(veh=vehicle[0].osrm_profile, time_or_dist='elevation')[_boolean_selected][:,_boolean_selected]
+        
         self._num_locations = self._locations.shape[0]
         self._demands = [i if pd.notnull(i) else 0 for i in self._demands]
         self.nodes_to_names = dict()
@@ -378,7 +388,9 @@ class DataProblem():
     def distance_matrix(self):
         return self._distance
 
-
+    @property
+    def elevation_cost(self):
+        return self._elevation_cost
 
 class CreateTimeEvaluator(object):
     """Creates callback to get total times between locations.
@@ -568,8 +580,10 @@ def create_vehicle(node_data, config):
         for vec in vehicles_details:   #, "Zone , 3 Wheeler, Cap 81"
             _time_distance = node_data.get_time_or_dist_mat(veh = vec[0], time_or_dist='time')[_boolean_selected][:,_boolean_selected]   
             _travel_distance = node_data.get_time_or_dist_mat(veh = vec[0], time_or_dist='dist')[_boolean_selected][:,_boolean_selected]
+            _elevation_cost = node_data.get_time_or_dist_mat(veh = vec[0], time_or_dist='elevation')[_boolean_selected][:,_boolean_selected]
+        
             metadata = f"{'-'.join(config['optimized_region'])} , {vec[0]}, Cap {vec[1]}"
-            vehicles.append(Vehicle(_time_distance, _travel_distance, vec[1], metadata, vec[0], vec[2], vec[3]))
+            vehicles.append(Vehicle(_time_distance, _travel_distance, _elevation_cost, vec[1], metadata, vec[0], vec[2], vec[3]))
                    
     else:
         total_demand = sum([i for i in node_data.get_attr('buckets')[_boolean_selected] if i > 0])
@@ -582,11 +596,12 @@ def create_vehicle(node_data, config):
         for vec in range(num_vehicle_type): # TODO - if there are multiple vehicle types then we create a lot of extra vehicles
             _time_distance = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='time')[_boolean_selected][:,_boolean_selected]   
             _travel_distance = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='dist')[_boolean_selected][:,_boolean_selected]
+            _elevation_cost = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='elevation')[_boolean_selected][:,_boolean_selected]
             
             # Create some summary info for display purposes on maps
             metadata = f"{'-'.join(config['optimized_region'])} , {vehicle_profile[vec][0]}, Cap {vehicle_profile[vec][1]}"
             vehicles = vehicles + [
-                        Vehicle(_time_distance,_travel_distance,vehicle_profile[vec][1], 
+                        Vehicle(_time_distance,_travel_distance, _elevation_cost, vehicle_profile[vec][1], 
                                 metadata, vehicle_profile[vec][0], config['Start_Point'][0], config['End_Point'][0]) 
                             for j in range(vehicle_number)
                         ]
@@ -611,6 +626,8 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
             distance_matrix = vehicles[vehicle_id].time_distance_matrix
         elif dist_or_time == 'dist':
             distance_matrix = vehicles[vehicle_id].travel_distance_matrix
+        elif consider_elevation:
+            distance_matrix = vehicles[vehicle_id].elevation_cost_matrix
 
         def distance_callback_vehicle(from_index, to_index, data=distance_matrix, service_time = int(data.time_per_demand_unit), clusters=data.node_clusters, points = data.all_start_points+data.all_end_points, unload_indices = data.unload_indices):
             # Convert from routing variable Index to distance matrix NodeIndex.
@@ -1063,7 +1080,11 @@ def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profil
     #profiles = node_data_filtered.veh_time_osrmmatrix_dict.keys() #TODO require a refactor to have two vehicle types in the same zone, then we can loop over the profiles
     profile = current_profile
     
-    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile)
+    if consider_elevation:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
+    else:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
+
     buckets = node_data_filtered.get_attr('buckets')
     names = node_data_filtered.get_attr('name')
 
@@ -1118,7 +1139,11 @@ def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_pr
     #profiles = node_data_filtered.veh_time_osrmmatrix_dict.keys() #TODO require a refactor to have two vehicle types in the same zone, then we can loop over the profiles
     profile = current_profile
     
-    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile)
+    if consider_elevation:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
+    else:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
+
     buckets = node_data_filtered.get_attr('buckets')
     names = node_data_filtered.get_attr('name')
     time_windows = node_data_filtered.get_attr('time_windows')

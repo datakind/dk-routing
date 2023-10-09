@@ -17,6 +17,7 @@ from output.cleaned_node_data import CleanedNodeData
 import time #looking at runtime
 import ujson
 import osrmbindings
+import elevation_utils
 
 osrm_filepath = os.environ['osm_filename']
 
@@ -48,8 +49,9 @@ class NodeData:
     
     veh_time_osrmmatrix_dict=None
     veh_dist_osrmmatrix_dict=None
-
-    def __init__(self, df_gps, df_bad_gps=None, veh_time_osrmmatrix_dict=None, veh_dist_osrmmatrix_dict=None):
+    veh_elevation_cost_osrmmatrix_dict=None
+    
+    def __init__(self, df_gps, df_bad_gps=None, veh_time_osrmmatrix_dict=None, veh_dist_osrmmatrix_dict=None, veh_elevation_cost_osrmmatrix_dict=None):
         """
         Instantiates the NodeData class.
         
@@ -60,10 +62,11 @@ class NodeData:
             must contain all columns in NodeData.standard_columns_bad
             veh_time_osrmmatrix_dict (dict, default None): dictionary of vehicle profile:time OSRMMatrix objects
             veh_dist_osrmmatrix_dict (dict, default None):dictionary of vehicle profile: distance OSRMMatrix objects
+            veh_elevation_cost_osrmmatrix_dict (dict, default None):dictionary of vehicle profile: elevation cost OSRMMatrix objects
         Returns:
             None
         """
-        
+
         #incoming dataframes must contain the predefined ("standard") columns
         if not set(self.standard_columns).issubset(df_gps.columns):
             raise Exception('Data must contain all the standard column labels')
@@ -74,7 +77,7 @@ class NodeData:
         self.df_gps_verbose = df_gps
         self.df_bad_gps_verbose = df_bad_gps
         
-        #make sure time/dist array sizes line up correctly with number of nodes
+        #make sure time/dist array sizes line up correctly with number of nodes 
         if veh_time_osrmmatrix_dict != None:
             for key, this_orsm_mat in veh_time_osrmmatrix_dict.items():
                 array_shape = this_orsm_mat.time_dist_mat.shape
@@ -96,6 +99,17 @@ class NodeData:
                     raise Exception('Time/Distance matrix size must be the same as the number of nodes')
                     
             self.veh_dist_osrmmatrix_dict = veh_dist_osrmmatrix_dict
+        
+        if veh_elevation_cost_osrmmatrix_dict != None:
+            for key, this_orsm_mat in veh_elevation_cost_osrmmatrix_dict.items():
+                array_shape = this_orsm_mat.time_dist_mat.shape
+                num_rows = array_shape[0]
+                num_cols = array_shape[1]
+                if (num_rows != self.df_gps_verbose.shape[0]) or (num_cols != self.df_gps_verbose.shape[0])\
+                or (len(array_shape) != 2):
+                    raise Exception('Time/Distance matrix size must be the same as the number of nodes')
+                    
+            self.veh_elevation_cost_osrmmatrix_dict = veh_elevation_cost_osrmmatrix_dict
         
     
     def filter_nodedata(self, dict_filter, filter_name_str=None):
@@ -140,10 +154,15 @@ class NodeData:
         #select the subtable of time/dist matrices
         veh_time_osrmmatrix_dict_new = {}
         veh_dist_osrmmatrix_dict_new = {}
+        veh_elevation_cost_osrmmatrix_dict_new = {}
+        
         for veh, this_orsm_mat in self.veh_time_osrmmatrix_dict.items():
             veh_time_osrmmatrix_dict_new[veh] = OSRMMatrix.get_filtered_osrm_mat(this_orsm_mat, bool_filter_good)
         for veh, this_orsm_mat in self.veh_dist_osrmmatrix_dict.items():
             veh_dist_osrmmatrix_dict_new[veh] = OSRMMatrix.get_filtered_osrm_mat(this_orsm_mat, bool_filter_good)
+        for veh, this_orsm_mat in self.veh_elevation_cost_osrmmatrix_dict.items():
+            veh_elevation_cost_osrmmatrix_dict_new[veh] = OSRMMatrix.get_filtered_osrm_mat(this_orsm_mat, bool_filter_good)
+
 
         #filter the nodes
         df_gps_verbose_new = self.df_gps_verbose.loc[bool_filter_good]
@@ -154,7 +173,7 @@ class NodeData:
         #Create new NodeDate object to return
         filtered_node_data = NodeData(
             df_gps_verbose_new, df_bad_gps_verbose_new,
-            veh_time_osrmmatrix_dict_new, veh_dist_osrmmatrix_dict_new)
+            veh_time_osrmmatrix_dict_new, veh_dist_osrmmatrix_dict_new, veh_elevation_cost_osrmmatrix_dict_new)
 
         #Update str used for filename printing
         if filter_name_str is not None:
@@ -171,7 +190,7 @@ class NodeData:
             veh (str): Vehicle profile string for OSRM matrix.
             time_or_dist (str, default 'time'): String identifying is return object is time
             or distance matrix. If 'time', time matrix is returned. If 'dist',
-            distance matrix is returned.
+            distance matrix is returned. 'elevation' is also an option
         Returns:
             Numpy array of time or dist matrix
         """
@@ -179,6 +198,8 @@ class NodeData:
             return self.veh_time_osrmmatrix_dict[veh].time_dist_mat
         elif time_or_dist == 'dist':
             return self.veh_dist_osrmmatrix_dict[veh].time_dist_mat
+        elif time_or_dist == 'elevation':
+            return self.veh_elevation_cost_osrmmatrix_dict[veh].time_dist_mat
         else:
             raise Exception('Please provide appropriate time_or_dist variable.')
         
@@ -192,7 +213,7 @@ class NodeData:
         Returns:
             Numpy array of sanpped lat-long coordinates for all nodes.
         """
-        return self.veh_time_osrmmatrix_dict[veh].snapped_gps_coords
+        return self.veh_time_osrmmatrix_dict[veh].snapped_gps_coords #the gps coords are the same regardless of costs
     
     @property
     def lat_long_coords(self):
@@ -313,7 +334,7 @@ class NodeData:
 
     def __reduce__(self):
         """Helps with pickling."""
-        return (NodeData, (self.df_gps_verbose, self.df_bad_gps_verbose, self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict))
+        return (NodeData, (self.df_gps_verbose, self.df_bad_gps_verbose, self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict, self.veh_elevation_cost_osrmmatrix_dict))
 
     
 class NodeLoader:
@@ -328,8 +349,9 @@ class NodeLoader:
     df_bad_gps_verbose = pd.DataFrame(data=None, columns=NodeData.standard_columns_bad)
     
     #dictionaries with key:val pairs as vehicle profile string: OSRMMatrix object 
-    veh_time_osrmmatrix_dict = {}
-    veh_dist_osrmmatrix_dict = {}
+    #veh_time_osrmmatrix_dict = {}
+    #veh_dist_osrmmatrix_dict = {}
+    #veh_elevation_cost_osrmmatrix_dict = {}
     
     def __init__(self,
                  config_manager: ConfigManager,
@@ -418,7 +440,7 @@ class NodeLoader:
 
         #Build the time and distance matrices for all vehicle profiles
         nodes = NodeData(self.df_gps_verbose)
-        self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict = NodeLoader.build_veh_matrices(
+        self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict, self.veh_elevation_cost_osrmmatrix_dict = NodeLoader.build_veh_matrices(
             config_manager=config_manager, nodes=nodes
         )
 
@@ -426,11 +448,13 @@ class NodeLoader:
     def build_veh_matrices(config_manager, nodes):
         veh_time_osrmmatrix_dict = {}
         veh_dist_osrmmatrix_dict = {}
+        veh_elevation_cost_osrmmatrix_dict = {}
         for veh in config_manager.get_build_parameters().get_vehicle_profiles():
-            durations, distances, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh)
+            durations, distances, elevations, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh, True) #elevation True
             veh_time_osrmmatrix_dict[veh] = OSRMMatrix(nodes, durations, snapped_gps_coords)
             veh_dist_osrmmatrix_dict[veh] = OSRMMatrix(nodes, distances, snapped_gps_coords)
-        return veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict
+            veh_elevation_cost_osrmmatrix_dict[veh] = OSRMMatrix(nodes, elevations, snapped_gps_coords)
+        return veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict, veh_elevation_cost_osrmmatrix_dict
 
     def clean_nodes(self, max_dist=None):
         """
@@ -504,7 +528,6 @@ class NodeLoader:
                 self.df_gps_verbose[f'long_snapped_{veh}'] = snapped_long_profile
                 self.df_gps_verbose[f'snapped_dist_{veh}'] = snapped_dist_profile
         
-            
             try:
                 removed_indices_series = pd.Series(removed_indices).value_counts()
                 flagged_indices_series = pd.Series(flagged_indices).value_counts()
@@ -553,10 +576,10 @@ class NodeLoader:
             NodeData object derived from NodeLoader
         """
         
-        return NodeData(self.df_gps_verbose, self.df_bad_gps_verbose, self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict)
+        return NodeData(self.df_gps_verbose, self.df_bad_gps_verbose, self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict, self.veh_elevation_cost_osrmmatrix_dict)
     
     @staticmethod
-    def get_matrices(lat_long_coords, veh):
+    def get_matrices(lat_long_coords, veh, consider_elevation):
         """Retrieves the time and distance matrices from OSRM.
         
         Args:
@@ -567,7 +590,8 @@ class NodeLoader:
             distances (np array): distance matrix
             snapped_gps_coords (np array): snapped gps coordinates
         """
-        
+        factor = 100
+
         osrmbindings.initialize(f"/{veh}/{osrm_filepath}")
 
         latitudes = lat_long_coords[:,0].tolist()
@@ -578,21 +602,27 @@ class NodeLoader:
 
         durations = np.array(parsed["durations"])
         distances = np.array(parsed["distances"])
-
+        elevations = (durations*0)+1
+        
+        if consider_elevation:
+            elevation_utils.download_elevation_data()
+            elevation_output = elevation_utils.compute_elevation_costs(veh, longitudes, latitudes)
+            elevations = durations + (factor * elevation_output)
+            
         snapped_gps_coords = [source["location"] for source in parsed["sources"]]
         snapped_gps_coords = np.fliplr(snapped_gps_coords)
 
-        return durations, distances, snapped_gps_coords
+        return durations, distances, elevations, snapped_gps_coords
 
     @staticmethod
     def from_clean_gps_node_data(config_manager, node_data_df) -> NodeData:
         """
         Create a NodeData object from a loaded pre-cleaned dataframe
         """
-        veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict = NodeLoader.build_veh_matrices(
+        veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict, veh_elevation_cost_osrmmatrix_dict = NodeLoader.build_veh_matrices(
             config_manager=config_manager, nodes=NodeData(node_data_df)
         )
-        return NodeData(node_data_df, None, veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict)
+        return NodeData(node_data_df, None, veh_time_osrmmatrix_dict, veh_dist_osrmmatrix_dict, veh_elevation_cost_osrmmatrix_dict)
 
 class OSRMMatrix:
     """
