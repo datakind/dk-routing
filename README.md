@@ -20,13 +20,25 @@ Here are some features supported by the current release.
 * Possibility of editing the routes via spreadsheets to reorder locations or put a location onto a different trip
 * Exports GPX tracks to be used in turn-by-turn navigation tools (e.g. OSM Automated Navigation Directions at https://osmand.net/) 
 
-# Why does it look like?
+# What does it look like?
 
 An example of a map with all planned trips:
 ![image](https://github.com/datakind/dk-routing/assets/1616150/361cceb3-ea1d-498d-9ba0-d5c46ff8570b)
 
-And the spreadsheet allowing reordering of the locations:
+The spreadsheet allowing reordering of the locations:
 ![image](https://github.com/datakind/dk-routing/assets/1616150/ddb0c63b-7454-46b1-93b7-73a74fc32ec5)
+
+And a sample solution that provides relevant metrics:
+> ...  
+> Route ID red-7, West , 3wheeler, Cap 50:  
+> waste_basket -> 3365391469 -> 2068942499 -> 7778351995 -> 4056395683 -> 995175662 -> 7778324711 -> 7829947085 -> 4472447170 -> 2622751934 -> 1794111136 -> 7820195264 -> 7798179688 -> 267901435 -> 321647302 -> West-UNLOAD  
+> Distance of the route: 4.926km  
+> Load of the route: 45  
+> Time of the route: 47min  
+>
+> Total:  
+> Distance of all routes: 38.422km  
+> Time of all routes: 311min  
 
 # Contact
 
