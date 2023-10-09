@@ -6,16 +6,19 @@ User instructions are at https://github.com/datakind/dk-routing/blob/main/dkrout
 
 Configuration manual is at https://docs.google.com/document/d/1iOlXQk6_ElM_LdawJPREHNjVkv_2Qajam3is2hm5zyM
 
-Developed by volunteers and DataKind, formerly known as DataKind Routing Tool
+Developed by volunteers and DataKind, formerly known as DataKind Routing Tool. The initial goal was to provide routing assistance for container-based sanitation organizations and we're open sourcing the tool to make sure it can reach many more use cases and organizations.
 
 # Why would it be useful for me?
 
-* There are hundreds or thousands of locations to visit
-* Specific time windows are important constraints
-* There needs to be multiple different vehicles with different speeds, allowable roads and capacities
-* Visualizing detailed maps of the routes is necessary
-* You'd like to edit the routes via spreadsheets
-* Turn-by-turn navigation tools (e.g. OSM Automated Navigation Directions at https://osmand.net/) can be part of the toolset 
+Here are some features supported by the current release.
+
+* Routes through hundreds or thousands of locations in minutes
+* Minimizes either time or distance across trips (with steep elevation changes as an experimental optimization)
+* Specific time windows per area or per location are respected
+* Configuration of multiple different vehicles with different speeds, allowable roads and capacities via OSRM profiles
+* Detailed maps of the trips in html files
+* Possibility of editing the routes via spreadsheets to reorder locations or put a location onto a different trip
+* Exports GPX tracks to be used in turn-by-turn navigation tools (e.g. OSM Automated Navigation Directions at https://osmand.net/) 
 
 # Why does it look like?
 
