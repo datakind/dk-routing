@@ -1,0 +1,87 @@
+FROM ubuntu:22.04
+
+RUN apt-get update
+
+RUN apt-get -y install build-essential git cmake pkg-config libbz2-dev libxml2-dev libzip-dev libboost-all-dev lua5.2 liblua5.2-dev libtbb-dev
+
+RUN git clone -b master --single-branch https://github.com/Project-OSRM/osrm-backend.git
+
+RUN cd osrm-backend && git reset --hard 31e31a63d && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . && cmake --build . --target install
+
+ARG osm_download_url
+
+ARG osm_filename_arg
+
+ENV osm_filename $osm_filename_arg
+
+RUN apt-get -y install wget
+
+RUN wget -O "$osm_filename_arg.osm.pbf" --no-check-certificate $osm_download_url
+
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py38_22.11.1-1-Linux-x86_64.sh
+
+RUN bash Miniconda3-py38_22.11.1-1-Linux-x86_64.sh -b -p /opt/conda
+
+ENV PATH="${PATH}:/opt/conda/bin"
+
+RUN mkdir osrm-backend/defaultprofiles
+
+RUN mv osrm-backend/profiles/*.lua osrm-backend/defaultprofiles/
+
+COPY /veh_profiles/* osrm-backend/profiles/
+
+COPY build_parameters.yml .
+
+COPY build_vehicle_profiles.py .
+
+RUN /opt/conda/bin/python build_vehicle_profiles.py
+
+COPY requirements.txt .
+
+RUN git clone https://github.com/gis-ops/py-osrm.git
+
+RUN cd py-osrm && pip install .
+
+RUN /opt/conda/bin/python -m pip install -r requirements.txt
+
+RUN conda install cffi==1.14.6
+
+RUN apt-get -y install vim
+
+RUN apt-get -y install curl gnupg2
+
+RUN mkdir data
+
+RUN mkdir data/gps_data_clean
+
+RUN mkdir data/time_and_dist_matrices
+
+COPY ["/local_data/customer_data.xlsx", "data/."]
+
+COPY /local_data/extra_points.csv data/.
+
+COPY /local_data/config.json data/.
+
+COPY /local_data/custom_header.yaml data/.
+
+RUN mkdir maps
+
+RUN mkdir manual_edits
+
+RUN mkdir manual_edits/maps
+
+COPY manual.ipynb .
+
+COPY manual.sh .
+
+RUN mkdir -p py-lib
+
+RUN pip uninstall -y typing-extensions && pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
+
+COPY src src
+
+ENV PYTHONPATH "${PYTHONPATH}:./py-lib:/src/python"
+
+CMD ["/opt/conda/bin/python", "src/py/main_application.py", "--local"]
+
+CMD ["bash"]
