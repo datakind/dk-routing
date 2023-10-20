@@ -47,7 +47,7 @@ max_time_horizon = 24*60*60
 color_naming = True
 north_south_ordering = True
 
-consider_elevation = True # we will put that in the config
+consider_elevation = False # we will put that in the config
 
 verbose = False
 
