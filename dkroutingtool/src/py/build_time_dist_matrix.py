@@ -450,7 +450,7 @@ class NodeLoader:
         veh_dist_osrmmatrix_dict = {}
         veh_elevation_cost_osrmmatrix_dict = {}
         for veh in config_manager.get_build_parameters().get_vehicle_profiles():
-            durations, distances, elevations, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh, True) #elevation True
+            durations, distances, elevations, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh, consider_elevation=False)
             veh_time_osrmmatrix_dict[veh] = OSRMMatrix(nodes, durations, snapped_gps_coords)
             veh_dist_osrmmatrix_dict[veh] = OSRMMatrix(nodes, distances, snapped_gps_coords)
             veh_elevation_cost_osrmmatrix_dict[veh] = OSRMMatrix(nodes, elevations, snapped_gps_coords)
@@ -590,7 +590,7 @@ class NodeLoader:
             distances (np array): distance matrix
             snapped_gps_coords (np array): snapped gps coordinates
         """
-        factor = 100
+        factor = 200
 
         osrmbindings.initialize(f"/{veh}/{osrm_filepath}")
 
