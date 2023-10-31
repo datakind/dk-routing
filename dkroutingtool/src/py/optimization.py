@@ -290,12 +290,6 @@ class DataProblem():
             self.k_cluster = config.get('k_cluster')
             
         self.workaround_dummy_vehicles = 0
-        
-        # Will use elevation-factored cost matrix instead of pure time matrix 
-        if config is None:
-            self.consider_elevation = False
-        else:
-            self.consider_elevation = config.get('consider_elevation', False)
 
         # Section below allows configurable hours
         if config is None:
@@ -1076,7 +1070,7 @@ def produce_temporary_routes(routes, vehicle_profiles, data, unload_routes = Non
     
     return routes_all
 
-def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profile, capacity = 81):
+def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profile, capacity = 81, consider_elevation=False):
     '''Takes a node data object and returns another one with super nodes, not recommended.
     Generally inferior to the sprawling method.
     Works with unload nodes.
@@ -1084,10 +1078,10 @@ def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profil
     #profiles = node_data_filtered.veh_time_osrmmatrix_dict.keys() #TODO require a refactor to have two vehicle types in the same zone, then we can loop over the profiles
     profile = current_profile
     
-    #if consider_elevation:
-    #    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
-    #else:
-    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
+    if consider_elevation:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
+    else:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
 
     buckets = node_data_filtered.get_attr('buckets')
     names = node_data_filtered.get_attr('name')
@@ -1135,7 +1129,7 @@ def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profil
 
     return node_data_filtered, supernodes, fictional_points
 
-def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_profile, capacity = 81):
+def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_profile, capacity = 81, consider_elevation=False):
     '''Takes a node data object and returns another one with super nodes.
     Recommended for most use cases.
     Works with unload nodes.
@@ -1143,10 +1137,10 @@ def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_pr
     #profiles = node_data_filtered.veh_time_osrmmatrix_dict.keys() #TODO require a refactor to have two vehicle types in the same zone, then we can loop over the profiles
     profile = current_profile
     
-    #if consider_elevation:
-    #    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
-    #else:
-    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
+    if consider_elevation:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
+    else:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
 
     buckets = node_data_filtered.get_attr('buckets')
     names = node_data_filtered.get_attr('name')
@@ -1332,6 +1326,12 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
 
             starts_ends = [this_config['Start_Point'][0], this_config['End_Point'][0]]
 
+        
+        # Will use elevation-factored cost matrix instead of pure time matrix 
+        if this_config is None:
+            consider_elevation = False
+        else:
+            consider_elevation = this_config.get('consider_elevation', False)
 
         supernodes = []
         if clustering_agglomeration:
@@ -1342,11 +1342,12 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
                 first_vehicle_profile = this_config['unload_vehicles'][0][0]
                 cluster_capacity = this_config['unload_vehicles'][0][1]
 
-            node_data_filtered, supernodes, fictional_points = produce_agglomerations(node_data_filtered, starts_ends, current_profile=first_vehicle_profile, capacity=cluster_capacity)
+            node_data_filtered, supernodes, fictional_points = produce_agglomerations(node_data_filtered, starts_ends, current_profile=first_vehicle_profile, capacity=cluster_capacity, consider_elevation=consider_elevation)
 
         #create vehicles and data problem
         vehicles = create_vehicle(node_data_filtered,this_config)
         data = DataProblem(node_data_filtered,vehicles,this_config, node_clusters = supernodes)
+        data.consider_elevation = consider_elevation
 
         if (sum(data.demands) > sum([v.capacity for v in vehicles])) and not this_config['enable_unload']:
             logging.warning('number of vehicles specified is not enough', sum(data.demands), sum([v.capacity for v in vehicles]))

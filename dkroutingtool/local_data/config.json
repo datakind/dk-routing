@@ -25,10 +25,10 @@
       "enable_unload": false,
       "unload_vehicles": [],
       "hours_allowed": 5,
-      "consider_elevation": false
+      "consider_elevation": true
     }
   ],
-  "node_loader_options": {"num_containers_default": 2},
+  "node_loader_options": {"num_containers_default": 2, "elevation_factor": 300},
   "global_solver_options": {
     "max_solver_time_min": 2,
     "fast_run": false

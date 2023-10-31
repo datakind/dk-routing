@@ -355,7 +355,8 @@ class NodeLoader:
     def __init__(self,
                  config_manager: ConfigManager,
                  zone_configs=None,
-                 num_containers_default=3):
+                 num_containers_default=3,
+                 elevation_factor=100):
         """Initializes the NodeData class.
             Args:
                 OSRM time/dist matrices
@@ -448,16 +449,16 @@ class NodeLoader:
         #Build the time and distance matrices for all vehicle profiles
         nodes = NodeData(self.df_gps_verbose)
         self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict, self.veh_elevation_cost_osrmmatrix_dict = NodeLoader.build_veh_matrices(
-            config_manager=config_manager, nodes=nodes, consider_elevation=self.consider_elevation
+            config_manager=config_manager, nodes=nodes, elevation_factor=elevation_factor, consider_elevation=self.consider_elevation
         )
 
     @staticmethod
-    def build_veh_matrices(config_manager, nodes, consider_elevation = False):
+    def build_veh_matrices(config_manager, nodes, elevation_factor, consider_elevation = False):
         veh_time_osrmmatrix_dict = {}
         veh_dist_osrmmatrix_dict = {}
         veh_elevation_cost_osrmmatrix_dict = {}
         for veh in config_manager.get_build_parameters().get_vehicle_profiles():
-            durations, distances, elevations, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh, consider_elevation=consider_elevation)
+            durations, distances, elevations, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh, consider_elevation=consider_elevation, factor=elevation_factor)
             veh_time_osrmmatrix_dict[veh] = OSRMMatrix(nodes, durations, snapped_gps_coords)
             veh_dist_osrmmatrix_dict[veh] = OSRMMatrix(nodes, distances, snapped_gps_coords)
             veh_elevation_cost_osrmmatrix_dict[veh] = OSRMMatrix(nodes, elevations, snapped_gps_coords)
@@ -586,7 +587,7 @@ class NodeLoader:
         return NodeData(self.df_gps_verbose, self.df_bad_gps_verbose, self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict, self.veh_elevation_cost_osrmmatrix_dict)
     
     @staticmethod
-    def get_matrices(lat_long_coords, veh, consider_elevation):
+    def get_matrices(lat_long_coords, veh, consider_elevation, factor):
         """Retrieves the time and distance matrices from OSRM.
         
         Args:
@@ -597,8 +598,6 @@ class NodeLoader:
             distances (np array): distance matrix
             snapped_gps_coords (np array): snapped gps coordinates
         """
-        factor = 200
-
         osrmbindings.initialize(f"/{veh}/{osrm_filepath}")
 
         latitudes = lat_long_coords[:,0].tolist()
@@ -617,7 +616,6 @@ class NodeLoader:
             elevation_utils.download_elevation_data(bounding_box)
             elevation_output = elevation_utils.compute_elevation_costs(veh, longitudes, latitudes)
             elevations = durations + (factor * elevation_output)
-            #elevations = factor*elevation_output
             
         snapped_gps_coords = [source["location"] for source in parsed["sources"]]
         snapped_gps_coords = np.fliplr(snapped_gps_coords)
