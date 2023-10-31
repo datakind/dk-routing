@@ -47,8 +47,6 @@ max_time_horizon = 24*60*60
 color_naming = True
 north_south_ordering = True
 
-consider_elevation = False # we will put that in the config
-
 verbose = False
 
 def clean_up_time(hour):
@@ -292,6 +290,12 @@ class DataProblem():
             self.k_cluster = config.get('k_cluster')
             
         self.workaround_dummy_vehicles = 0
+        
+        # Will use elevation-factored cost matrix instead of pure time matrix 
+        if config is None:
+            self.consider_elevation = False
+        else:
+            self.consider_elevation = config.get('consider_elevation', False)
 
         # Section below allows configurable hours
         if config is None:
@@ -626,7 +630,7 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
             distance_matrix = vehicles[vehicle_id].time_distance_matrix
         elif dist_or_time == 'dist':
             distance_matrix = vehicles[vehicle_id].travel_distance_matrix
-        elif consider_elevation:
+        elif data.consider_elevation:
             distance_matrix = vehicles[vehicle_id].elevation_cost_matrix
 
         def distance_callback_vehicle(from_index, to_index, data=distance_matrix, service_time = int(data.time_per_demand_unit), clusters=data.node_clusters, points = data.all_start_points+data.all_end_points, unload_indices = data.unload_indices):
@@ -1080,10 +1084,10 @@ def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profil
     #profiles = node_data_filtered.veh_time_osrmmatrix_dict.keys() #TODO require a refactor to have two vehicle types in the same zone, then we can loop over the profiles
     profile = current_profile
     
-    if consider_elevation:
-        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
-    else:
-        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
+    #if consider_elevation:
+    #    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
+    #else:
+    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
 
     buckets = node_data_filtered.get_attr('buckets')
     names = node_data_filtered.get_attr('name')
@@ -1139,10 +1143,10 @@ def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_pr
     #profiles = node_data_filtered.veh_time_osrmmatrix_dict.keys() #TODO require a refactor to have two vehicle types in the same zone, then we can loop over the profiles
     profile = current_profile
     
-    if consider_elevation:
-        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
-    else:
-        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
+    #if consider_elevation:
+    #    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
+    #else:
+    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
 
     buckets = node_data_filtered.get_attr('buckets')
     names = node_data_filtered.get_attr('name')
@@ -1328,6 +1332,7 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
 
             starts_ends = [this_config['Start_Point'][0], this_config['End_Point'][0]]
 
+
         supernodes = []
         if clustering_agglomeration:
             original_node_data_filtered = copy.deepcopy(node_data_filtered)
@@ -1348,7 +1353,7 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
             continue
 
         #run optimal route script
-        assignment, manager, routing =  get_optimal_route(data,vehicles, **solver_options)
+        assignment, manager, routing =  get_optimal_route(data, vehicles, **solver_options)
 
         #printer = ConsolePrinter(data, routing, assignment, manager)
         #printer.print()

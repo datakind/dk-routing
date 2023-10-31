@@ -1,4 +1,3 @@
-# python 3.7
 """
 Reads in xls of location data, cleans it and writes to a new file.
 Computes time and distance matrices for all nodes and vehicles and writes 
@@ -367,11 +366,15 @@ class NodeLoader:
         gps_input_data = config_manager.get_gps_inputs_data()
         df_gps_customers = gps_input_data.get_df_gps_customers()
         df_gps_extra = gps_input_data.get_df_gps_extra()
-
+        
+        consider_elevation_configs = set()
+        
         # Create unload nodes
         unload_depots = []
         unload_idx = 0
         for zone_config in zone_configs:
+            consider_elevation_configs.add(zone_config.get('consider_elevation', False))
+
             if verbose:
                 logging.info('Zone config', zone_config)
             if zone_config['enable_unload']:
@@ -416,6 +419,10 @@ class NodeLoader:
 
                         unload_idx += 1
 
+        if True in consider_elevation_configs:
+            self.consider_elevation = True
+        else: 
+            self.consider_elevation = False
 
         if verbose:
             logging.info("Unload depots", unload_depots)
@@ -441,16 +448,16 @@ class NodeLoader:
         #Build the time and distance matrices for all vehicle profiles
         nodes = NodeData(self.df_gps_verbose)
         self.veh_time_osrmmatrix_dict, self.veh_dist_osrmmatrix_dict, self.veh_elevation_cost_osrmmatrix_dict = NodeLoader.build_veh_matrices(
-            config_manager=config_manager, nodes=nodes
+            config_manager=config_manager, nodes=nodes, consider_elevation=self.consider_elevation
         )
 
     @staticmethod
-    def build_veh_matrices(config_manager, nodes):
+    def build_veh_matrices(config_manager, nodes, consider_elevation = False):
         veh_time_osrmmatrix_dict = {}
         veh_dist_osrmmatrix_dict = {}
         veh_elevation_cost_osrmmatrix_dict = {}
         for veh in config_manager.get_build_parameters().get_vehicle_profiles():
-            durations, distances, elevations, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh, consider_elevation=False)
+            durations, distances, elevations, snapped_gps_coords = NodeLoader.get_matrices(nodes.lat_long_coords, veh, consider_elevation=consider_elevation)
             veh_time_osrmmatrix_dict[veh] = OSRMMatrix(nodes, durations, snapped_gps_coords)
             veh_dist_osrmmatrix_dict[veh] = OSRMMatrix(nodes, distances, snapped_gps_coords)
             veh_elevation_cost_osrmmatrix_dict[veh] = OSRMMatrix(nodes, elevations, snapped_gps_coords)
@@ -605,9 +612,12 @@ class NodeLoader:
         elevations = (durations*0)+1
         
         if consider_elevation:
-            elevation_utils.download_elevation_data()
+            padding = 0.02 # should catch road segments that extend beyond the bounding box of locations 
+            bounding_box = (min(latitudes)-padding, max(latitudes)+padding, min(longitudes)-padding, max(longitudes)+padding)
+            elevation_utils.download_elevation_data(bounding_box)
             elevation_output = elevation_utils.compute_elevation_costs(veh, longitudes, latitudes)
-            elevations = durations + (factor * elevation_output)
+            #elevations = durations + (factor * elevation_output)
+            elevations = factor*elevation_output
             
         snapped_gps_coords = [source["location"] for source in parsed["sources"]]
         snapped_gps_coords = np.fliplr(snapped_gps_coords)

@@ -79,15 +79,18 @@ def main():
     st.write('Calculating a solution will take up to twice the amount of time specified by the config file')
     
     solution_requested = st.button('Click here to calculate routes')
+    
     if solution_requested:
-        solution, map = request_solution()
+        with st.spinner('Computing routes, please wait...'):
+            solution, map = request_solution()
         components.html(map, height = 800)
         st.write(solution)
     
     st.subheader('Optional route adjustments')
-    uploaded_files = st.file_uploader('If adjustments are made in the manual_edits spreadsheet, upload it here to trigger recalculations', accept_multiple_files=True)
+    uploaded_files = st.file_uploader('If adjustments are made in the manual_edits spreadsheet, upload it here to get adjusted solutions', accept_multiple_files=True)
     if len(uploaded_files) > 0:
-        response, solution, map = adjust(uploaded_files)
+        with st.spinner('Adjusting routes, please wait...'):
+            response, solution, map = adjust(uploaded_files)
         st.write(response)
         components.html(map, height = 800)
         st.write(solution)
