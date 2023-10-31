@@ -616,8 +616,8 @@ class NodeLoader:
             bounding_box = (min(latitudes)-padding, max(latitudes)+padding, min(longitudes)-padding, max(longitudes)+padding)
             elevation_utils.download_elevation_data(bounding_box)
             elevation_output = elevation_utils.compute_elevation_costs(veh, longitudes, latitudes)
-            #elevations = durations + (factor * elevation_output)
-            elevations = factor*elevation_output
+            elevations = durations + (factor * elevation_output)
+            #elevations = factor*elevation_output
             
         snapped_gps_coords = [source["location"] for source in parsed["sources"]]
         snapped_gps_coords = np.fliplr(snapped_gps_coords)
