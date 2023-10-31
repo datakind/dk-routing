@@ -1332,7 +1332,7 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
             consider_elevation = False
         else:
             consider_elevation = this_config.get('consider_elevation', False)
-
+        print(consider_elevation)
         supernodes = []
         if clustering_agglomeration:
             original_node_data_filtered = copy.deepcopy(node_data_filtered)
@@ -1367,6 +1367,7 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
             node_data_filtered = original_node_data_filtered
             vehicles = create_vehicle(node_data_filtered,this_config)
             data = DataProblem(node_data_filtered, vehicles, this_config)
+            data.consider_elevation = consider_elevation
             assignment, manager, routing =  get_optimal_route(data, vehicles, warmed_up = full_routes, **solver_options)
             if assignment is None:
                 logging.warning("Clustered version did not work, running without it")
