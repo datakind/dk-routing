@@ -2,7 +2,7 @@ FROM continuumio/miniconda3:4.12.0
 
 COPY requirements.txt .
 
-RUN pip install -f requirements.txt
+RUN pip install -r requirements.txt
 
 WORKDIR /src/app
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-FILEPATH=$(yq '.Build."osm-data"."geofabrik-url"' build_parameters.yml)
+FILEPATH=$(yq e '.Build."osm-data"."geofabrik-url"' build_parameters.yml)
 FILENAME=$(basename $FILEPATH)
 SHORTFILENAME=${FILENAME%%.*}
 
