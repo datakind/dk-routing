@@ -1,9 +1,8 @@
 Build:
     osm-data:
-        geofabrik-url: https://download.geofabrik.de/europe/monaco-latest.osm.pbf
+        geofabrik-url: https://github.com/datakind/dk-routing/releases/download/datadive_2023/Brooklyn.osm.pbf
     vehicle-types:  
-        - wheelbarrow
-        - avoidsteep3wheeler
+        - trucktest
 
 Run:
     storage-context: gdrive

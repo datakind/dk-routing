@@ -1,0 +1,77 @@
+{
+  "zone_configs": [
+    {
+      "optimized_region": [
+        "BK1"
+      ],
+      "Start_Point": [
+        "waste_basket"
+      ],
+      "End_Point": [
+        "waste_basket"
+      ],
+      "load_time": 2.25,
+      "trips_vehicle_profile": [
+        [
+          "trucktest",
+          150
+        ]
+      ],
+      "hours_allowed": 9,
+      "start_time": "8:00AM",
+      "enable_unload": false,
+      "unload_vehicles": []
+    },
+    {
+      "optimized_region": [
+        "BK2_3"
+      ],
+      "Start_Point": [
+        "waste_basket"
+      ],
+      "End_Point": [
+        "waste_basket"
+      ],
+      "load_time": 2.25,
+      "trips_vehicle_profile": [
+        [
+          "trucktest",
+          150
+        ]
+      ],
+      "enable_unload": false,
+      "unload_vehicles": [],
+      "hours_allowed": 9,
+      "start_time": "8:00AM"
+    },
+    {
+      "optimized_region": [
+        "BK4"
+      ],
+      "Start_Point": [
+        "waste_basket"
+      ],
+      "End_Point": [
+        "waste_basket"
+      ],
+      "load_time": 2.25,
+      "trips_vehicle_profile": [
+        [
+          "trucktest",
+          150
+        ]
+      ],
+      "enable_unload": false,
+      "unload_vehicles": [],
+      "hours_allowed": 9,
+      "start_time": "8:00AM"
+    }
+  ],
+  "node_loader_options": {
+    "num_containers_default": 2
+  },
+  "global_solver_options": {
+    "max_solver_time_min": 5,
+    "fast_run": true
+  }
+}

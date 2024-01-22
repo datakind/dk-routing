@@ -1,36 +1,41 @@
 {
   "zone_configs": [
     {
-      "optimized_region": ["East"],
+      "optimized_region": ["BK1"],
       "Start_Point": ["waste_basket"],
       "End_Point": ["waste_basket"],
-      "load_time": 2.5,
-      "trips_vehicle_profile": [["avoidsteep3wheeler", 50]],
+      "load_time": 2.25,
+      "trips_vehicle_profile": [["trucktest", 150]],
       "hours_allowed": 9,
       "start_time": "8:00AM",
-      "consider_elevation": false,
-      "enable_unload": true,
-      "unload_vehicles": [
-        ["avoidsteep3wheeler", 50, "waste_basket", "waste_basket"],
-        ["avoidsteep3wheeler", 50, "waste_basket", "waste_basket"]
-      ],
-      "custom_unload_points": ["East-UNLOAD"]
+      "enable_unload": false,
+      "unload_vehicles": []
     },
     {
-      "optimized_region": ["West"],
+      "optimized_region": ["BK2_3"],
       "Start_Point": ["waste_basket"],
-      "End_Point": ["West-UNLOAD"],
-      "load_time": 2.5,
-      "trips_vehicle_profile": [["avoidsteep3wheeler", 50]],
+      "End_Point": ["waste_basket"],
+      "load_time": 2.25,
+      "trips_vehicle_profile": [["trucktest", 150]],
       "enable_unload": false,
       "unload_vehicles": [],
-      "hours_allowed": 5,
-      "consider_elevation": false
+      "hours_allowed": 9,
+      "start_time": "8:00AM"
+    },
+    {
+      "optimized_region": ["BK4"],
+      "Start_Point": ["waste_basket"],
+      "End_Point": ["waste_basket"],
+      "load_time": 2.25,
+      "trips_vehicle_profile": [["trucktest", 150]],
+      "enable_unload": false,
+      "unload_vehicles": [],
+      "hours_allowed": 9,
+      "start_time": "8:00AM"
     }
   ],
   "node_loader_options": {"num_containers_default": 2, "elevation_factor": 300},
   "global_solver_options": {
-    "max_solver_time_min": 1,
     "fast_run": true
   }
 }
