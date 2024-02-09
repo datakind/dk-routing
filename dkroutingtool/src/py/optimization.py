@@ -165,13 +165,14 @@ def get_last_time(data, manager, routing, assignment):
 
 class Vehicle():
     """Stores the property of a vehicle"""
-    def __init__(self, time_distance=None, travel_distance=None,
+    def __init__(self, time_distance=None, travel_distance=None, elevation_cost=None,
                  capacity=45, name=None, osrm_profile=None,
                  start=None, end=None):
         """Initializes the vehicle properties"""
         self._capacity = capacity
         self._time_distance = time_distance
         self._travel_distance = travel_distance
+        self._elevation_cost = elevation_cost
         self._name = name
         self._osrm_profile = osrm_profile
         self._start = start
@@ -191,6 +192,11 @@ class Vehicle():
     def travel_distance_matrix(self):
         """time matrices from node to node"""
         return self._travel_distance
+
+    @property
+    def elevation_cost_matrix(self):
+        """time + elevation costs matrices from node to node"""
+        return self._elevation_cost
 
     @property
     def name(self):
@@ -252,6 +258,8 @@ class DataProblem():
         self._demands = node_data.get_attr('buckets')[_boolean_selected]
         self._distance = node_data.get_time_or_dist_mat(veh=vehicle[0].osrm_profile, time_or_dist='dist')[_boolean_selected][:,_boolean_selected]
         self._time_distance = node_data.get_time_or_dist_mat(veh=vehicle[0].osrm_profile, time_or_dist='time')[_boolean_selected][:,_boolean_selected]
+        self._elevation_cost = node_data.get_time_or_dist_mat(veh=vehicle[0].osrm_profile, time_or_dist='elevation')[_boolean_selected][:,_boolean_selected]
+        
         self._num_locations = self._locations.shape[0]
         self._demands = [i if pd.notnull(i) else 0 for i in self._demands]
         self.nodes_to_names = dict()
@@ -378,7 +386,9 @@ class DataProblem():
     def distance_matrix(self):
         return self._distance
 
-
+    @property
+    def elevation_cost(self):
+        return self._elevation_cost
 
 class CreateTimeEvaluator(object):
     """Creates callback to get total times between locations.
@@ -565,11 +575,13 @@ def create_vehicle(node_data, config):
         # If we are using unloads then the vehicle creation is different
         vehicles_details = config['unload_vehicles']
         vehicles = []
-        for vec in vehicles_details:   #, "Dibout , 3 Wheeler, Cap 81"
+        for vec in vehicles_details:   #, "Zone , 3 Wheeler, Cap 81"
             _time_distance = node_data.get_time_or_dist_mat(veh = vec[0], time_or_dist='time')[_boolean_selected][:,_boolean_selected]   
             _travel_distance = node_data.get_time_or_dist_mat(veh = vec[0], time_or_dist='dist')[_boolean_selected][:,_boolean_selected]
+            _elevation_cost = node_data.get_time_or_dist_mat(veh = vec[0], time_or_dist='elevation')[_boolean_selected][:,_boolean_selected]
+        
             metadata = f"{'-'.join(config['optimized_region'])} , {vec[0]}, Cap {vec[1]}"
-            vehicles.append(Vehicle(_time_distance, _travel_distance, vec[1], metadata, vec[0], vec[2], vec[3]))
+            vehicles.append(Vehicle(_time_distance, _travel_distance, _elevation_cost, vec[1], metadata, vec[0], vec[2], vec[3]))
                    
     else:
         total_demand = sum([i for i in node_data.get_attr('buckets')[_boolean_selected] if i > 0])
@@ -582,10 +594,12 @@ def create_vehicle(node_data, config):
         for vec in range(num_vehicle_type): # TODO - if there are multiple vehicle types then we create a lot of extra vehicles
             _time_distance = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='time')[_boolean_selected][:,_boolean_selected]   
             _travel_distance = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='dist')[_boolean_selected][:,_boolean_selected]
+            _elevation_cost = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='elevation')[_boolean_selected][:,_boolean_selected]
+            
             # Create some summary info for display purposes on maps
             metadata = f"{'-'.join(config['optimized_region'])} , {vehicle_profile[vec][0]}, Cap {vehicle_profile[vec][1]}"
             vehicles = vehicles + [
-                        Vehicle(_time_distance,_travel_distance,vehicle_profile[vec][1], 
+                        Vehicle(_time_distance,_travel_distance, _elevation_cost, vehicle_profile[vec][1], 
                                 metadata, vehicle_profile[vec][0], config['Start_Point'][0], config['End_Point'][0]) 
                             for j in range(vehicle_number)
                         ]
@@ -610,16 +624,18 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
             distance_matrix = vehicles[vehicle_id].time_distance_matrix
         elif dist_or_time == 'dist':
             distance_matrix = vehicles[vehicle_id].travel_distance_matrix
+        elif data.consider_elevation:
+            distance_matrix = vehicles[vehicle_id].elevation_cost_matrix
 
         def distance_callback_vehicle(from_index, to_index, data=distance_matrix, service_time = int(data.time_per_demand_unit), clusters=data.node_clusters, points = data.all_start_points+data.all_end_points, unload_indices = data.unload_indices):
             # Convert from routing variable Index to distance matrix NodeIndex.
             from_node = manager.IndexToNode(from_index)
             to_node = manager.IndexToNode(to_index)
             
-            total_service_time = service_time
+            total_service_time = service_time # adjust when config suggests the number of containers increases the load time (and think about supernodes/clusters too)
             if clusters and from_node not in points:
                 cluster = clusters[from_node]
-                total_service_time = int(len(cluster)*(service_time + agg_threshold_radius))
+                total_service_time = int(len(cluster)*(service_time + agg_threshold_radius)) # supernodes are cluster of nearby locations and we're adding the typical amount of travel time between the locations which is the aggregation radius
             
             travel_time = 0
             if from_node == to_node:
@@ -1054,7 +1070,7 @@ def produce_temporary_routes(routes, vehicle_profiles, data, unload_routes = Non
     
     return routes_all
 
-def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profile, capacity = 81):
+def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profile, capacity = 81, consider_elevation=False):
     '''Takes a node data object and returns another one with super nodes, not recommended.
     Generally inferior to the sprawling method.
     Works with unload nodes.
@@ -1062,7 +1078,11 @@ def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profil
     #profiles = node_data_filtered.veh_time_osrmmatrix_dict.keys() #TODO require a refactor to have two vehicle types in the same zone, then we can loop over the profiles
     profile = current_profile
     
-    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile)
+    if consider_elevation:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
+    else:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
+
     buckets = node_data_filtered.get_attr('buckets')
     names = node_data_filtered.get_attr('name')
 
@@ -1109,7 +1129,7 @@ def produce_agglomerations_naive(node_data_filtered, starts_ends, current_profil
 
     return node_data_filtered, supernodes, fictional_points
 
-def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_profile, capacity = 81):
+def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_profile, capacity = 81, consider_elevation=False):
     '''Takes a node data object and returns another one with super nodes.
     Recommended for most use cases.
     Works with unload nodes.
@@ -1117,7 +1137,11 @@ def produce_agglomerations_sprawling(node_data_filtered, starts_ends, current_pr
     #profiles = node_data_filtered.veh_time_osrmmatrix_dict.keys() #TODO require a refactor to have two vehicle types in the same zone, then we can loop over the profiles
     profile = current_profile
     
-    profile_matrix = node_data_filtered.get_time_or_dist_mat(profile)
+    if consider_elevation:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='elevation')
+    else:
+        profile_matrix = node_data_filtered.get_time_or_dist_mat(profile, time_or_dist='time')
+
     buckets = node_data_filtered.get_attr('buckets')
     names = node_data_filtered.get_attr('name')
     time_windows = node_data_filtered.get_attr('time_windows')
@@ -1302,6 +1326,13 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
 
             starts_ends = [this_config['Start_Point'][0], this_config['End_Point'][0]]
 
+        
+        # Will use elevation-factored cost matrix instead of pure time matrix 
+        if this_config is None:
+            consider_elevation = False
+        else:
+            consider_elevation = this_config.get('consider_elevation', False)
+        print(consider_elevation)
         supernodes = []
         if clustering_agglomeration:
             original_node_data_filtered = copy.deepcopy(node_data_filtered)
@@ -1311,18 +1342,19 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
                 first_vehicle_profile = this_config['unload_vehicles'][0][0]
                 cluster_capacity = this_config['unload_vehicles'][0][1]
 
-            node_data_filtered, supernodes, fictional_points = produce_agglomerations(node_data_filtered, starts_ends, current_profile=first_vehicle_profile, capacity=cluster_capacity)
+            node_data_filtered, supernodes, fictional_points = produce_agglomerations(node_data_filtered, starts_ends, current_profile=first_vehicle_profile, capacity=cluster_capacity, consider_elevation=consider_elevation)
 
         #create vehicles and data problem
         vehicles = create_vehicle(node_data_filtered,this_config)
         data = DataProblem(node_data_filtered,vehicles,this_config, node_clusters = supernodes)
+        data.consider_elevation = consider_elevation
 
         if (sum(data.demands) > sum([v.capacity for v in vehicles])) and not this_config['enable_unload']:
             logging.warning('number of vehicles specified is not enough', sum(data.demands), sum([v.capacity for v in vehicles]))
             continue
 
         #run optimal route script
-        assignment, manager, routing =  get_optimal_route(data,vehicles, **solver_options)
+        assignment, manager, routing =  get_optimal_route(data, vehicles, **solver_options)
 
         #printer = ConsolePrinter(data, routing, assignment, manager)
         #printer.print()
@@ -1335,6 +1367,7 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
             node_data_filtered = original_node_data_filtered
             vehicles = create_vehicle(node_data_filtered,this_config)
             data = DataProblem(node_data_filtered, vehicles, this_config)
+            data.consider_elevation = consider_elevation
             assignment, manager, routing =  get_optimal_route(data, vehicles, warmed_up = full_routes, **solver_options)
             if assignment is None:
                 logging.warning("Clustered version did not work, running without it")
@@ -1393,7 +1426,7 @@ def add_display_name(route_dict):
 def reorder_route_dict(route_dict):
     '''Tries to keep a reliable ordering, from North to South given the average gps 
     locations of the nodes on the route.
-    Not used yet, need to break away logic elsewhere, look up the north_south_ordering code branch'''
+    Not used yet'''
     print(route_dict)
     return route_dict
 
@@ -1447,7 +1480,7 @@ def finalize_route_solution(solution: IntermediateOptimizationSolution, config) 
     
     display_dict = {str(key+1) : route_dict[key]['display_name'] for key in route_dict}
 
-    # Index up everything for visualization purposes 
+    # Index up everything for visualizaiton purposes 
     def index_up_dict(my_dict):
         return {str(k+1): my_dict[k] for k in my_dict}
 

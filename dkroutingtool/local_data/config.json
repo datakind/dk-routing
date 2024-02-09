@@ -7,7 +7,8 @@
       "load_time": 2.5,
       "trips_vehicle_profile": [["3wheeler", 50]],
       "hours_allowed": 9,
-      "start_time": "6:00AM",
+      "start_time": "8:00AM",
+      "consider_elevation": false,
       "enable_unload": true,
       "unload_vehicles": [
         ["3wheeler", 50, "waste_basket", "waste_basket"],
@@ -23,12 +24,13 @@
       "trips_vehicle_profile": [["3wheeler", 50]],
       "enable_unload": false,
       "unload_vehicles": [],
-      "hours_allowed": 5
+      "hours_allowed": 5,
+      "consider_elevation": false
     }
   ],
-  "node_loader_options": {"num_containers_default": 2},
+  "node_loader_options": {"num_containers_default": 2, "elevation_factor": 300},
   "global_solver_options": {
-    "max_solver_time_min": 2,
-    "fast_run": true
+    "max_solver_time_min": 1,
+    "fast_run": false
   }
 }

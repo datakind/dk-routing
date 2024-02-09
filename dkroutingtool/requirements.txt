@@ -20,7 +20,7 @@ jedi==0.13.3
 Jinja2==2.10.1
 jmespath==0.9.4
 MarkupSafe==1.1.1
-numpy==1.16.4
+numpy==1.19
 openpyxl==2.6.2
 ortools==7.8.7959
 pandas==1.1.1
@@ -42,7 +42,7 @@ python-dateutil==2.8.0
 pytz==2019.1
 requests==2.23.0
 s3transfer==0.3.3
-scipy==1.3.0
+scipy==1.7
 six==1.13.0
 traitlets==4.3.2
 ujson==1.35
@@ -62,3 +62,4 @@ gpx-converter==2.1.0
 fastapi==0.103
 uvicorn==0.22
 python-multipart==0.0.6
+rasterio==1.2.10
