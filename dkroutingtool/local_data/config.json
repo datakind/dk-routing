@@ -31,6 +31,6 @@
   "node_loader_options": {"num_containers_default": 2, "elevation_factor": 300},
   "global_solver_options": {
     "max_solver_time_min": 1,
-    "fast_run": false
+    "fast_run": true
   }
 }

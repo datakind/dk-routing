@@ -1,9 +1,9 @@
 name: Create and publish a Docker image
 
-# Configures this workflow to run every time a change is pushed to the branch called `main`.
 on:
   push:
     branches: ['main']
+  workflow_dispatch:
 
 # Defines two custom environment variables for the workflow. These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
 env:
@@ -49,3 +49,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+      - name: Run tests
+        run: |
+          echo Running tests
+          docker run --name tester --rm ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags }} /opt/conda/bin/python /src/tests/end_to_end/test_runner.py	
