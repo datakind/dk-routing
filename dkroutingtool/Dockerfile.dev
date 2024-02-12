@@ -90,6 +90,8 @@ COPY manual.ipynb .
 
 COPY manual.sh .
 
+COPY Makefile .
+
 RUN mkdir -p py-lib
 
 RUN mv osrm-backend/example/build/osrmbindings.cpython-37m-x86_64-linux-gnu.so py-lib/

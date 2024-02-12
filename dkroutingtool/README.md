@@ -1,9 +1,13 @@
 
 # CART General Instructions
 
-You'll need to install docker and yq.
+You'll need to install docker (e.g. Rancher Desktop) and yq.
 
 The only vehicle profiles available are the ones defined in the directory `veh_profiles`, so make sure to have at least one profile there before building the solution. Feel free to add your own profiles as needed.
+
+Refer to the Makefile for common use cases, e.g.
+`make demo`
+then go to http://localhost:8501/ to use the web-based interface
 
 ## User Manual
 This is the draft for a user manual, it has information about configuration options and a few things that are more related to setting up your workflow with the tool.
@@ -11,6 +15,8 @@ https://docs.google.com/document/d/1iOlXQk6_ElM_LdawJPREHNjVkv_2Qajam3is2hm5zyM
 
 ### Server API example
 docker run --network host dkroutingtool:latest /opt/conda/bin/python src/py/server.py
+or if you want to map ports instead: 
+docker run -p 5001:5001 dkroutingtool:latest /opt/conda/bin/python src/py/server.py
 
 curl -X "POST" "localhost:5001/provide_files" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "files=@local_data/config.json" -F "files=@local_data/customer_data.xlsx"
 
@@ -19,6 +25,10 @@ curl http://localhost:5001/get_solution
 curl -o download.zip http://localhost:5001/download
 
 curl -X "POST" "localhost:5001/adjust_solution" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "files=@download/manual_edits/manual_routes_edits.xlsx"
+
+### GUI
+
+Refer to the src/py/ui directory to try out the web-based interface.
 
 ## Dev
 
