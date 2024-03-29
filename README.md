@@ -1,5 +1,8 @@
 # Container-based Action Routing Tool (CART)
 
+[![Build and test](https://github.com/datakind/dk-routing/actions/workflows/docker-actions.yml/badge.svg)](https://github.com/datakind/dk-routing/actions/workflows/docker-actions.yml)
+
+
 A tool that enables the planning of container pickup and dropoff at many locations with customizables vehicles (speed, allowed roadways, capacity, etc.)
 
 User instructions are at https://github.com/datakind/dk-routing/blob/main/dkroutingtool/README.md
