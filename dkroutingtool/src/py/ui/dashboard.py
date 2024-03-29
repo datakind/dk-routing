@@ -4,6 +4,9 @@ import datetime
 import streamlit as st
 import zipfile
 import streamlit.components.v1 as components
+from folium.plugins import Draw
+from streamlit_folium import st_folium
+import folium
 
 st.set_page_config(page_title='Container-based Action Routing Tool (CART)', layout="wide")
 
@@ -34,6 +37,12 @@ def request_solution():
     solution, map, solution_zip = download_solution(solution_path='solution.txt', map_path='/maps/route_map.html')
 
     return solution, map, solution_zip
+
+def request_map(bounding_box):
+    response = requests.get(f'{host_url}/request_map/?minlat={bounding_box[0]}&minlon={bounding_box[1]}&maxlat={bounding_box[2]}&maxlon={bounding_box[3]}')
+    
+
+    return True
 
 def adjust(adjusted_file):
     headers = {
@@ -73,6 +82,27 @@ def upload_data(files_from_streamlit):
 
 def main():
     st.header('Container-based Action Routing Tool (CART)')
+
+    st.write('If required, draw a rectangle over the area you want to use for routing. Please select an area as small as possible.')
+    m = folium.Map(location=[-11.9858, -77.019], zoom_start=5)
+    Draw(export=False).add_to(m)
+    map_output = st_folium(m, width=700, height=500)
+    if map_output['last_active_drawing'] is not None:
+        coords = map_output['last_active_drawing']['geometry']['coordinates']
+        lats = [coords[0][i][0] for i in range(5)] # 5 because we expect a rectangle including its center point
+        lons = [coords[0][i][1] for i in range(5)]
+        bounding_box = [min(lats), min(lons), max(lats), max(lons)]
+        st.write(f"Bounding box: {bounding_box}")
+        area = abs(bounding_box[2] - bounding_box[0]) * abs(bounding_box[3] - bounding_box[1]) 
+        st.write(f"Bounding box: {bounding_box}, area: {area} square units")
+        if area > 0.01:
+            st.write(f'Please choose a smaller area. We allow areas below 0.01')
+        else:
+            map_requested = st.button('Click here to download the area. You do not need to download it again if you try out multiple solutions below')
+            if map_requested:
+                with st.spinner('Downloading the road network. This may take a few minutes, please wait...'):
+                    request_map(bounding_box)
+                st.write('Road network ready for routing')
 
     uploaded_files = st.file_uploader('Upload all required files (config, locations, extra points)', accept_multiple_files=True)
     if len(uploaded_files) > 0:

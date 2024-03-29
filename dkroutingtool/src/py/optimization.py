@@ -30,8 +30,6 @@ from visualization import colorList
 from output.route_solution_data import IntermediateOptimizationSolution, FinalOptimizationSolution
 import osrmbindings
 
-osrm_filepath = os.environ['osm_filename']
-
 resequencing = True
 resequencing_step_size = 0.0002 # Arbitrary and small, in the scale of long/lat degrees
 
@@ -1051,7 +1049,7 @@ def produce_temporary_routes(routes, vehicle_profiles, data, unload_routes = Non
         end_point = end_points[index]
         
         if len(route) > 0:
-            osrmbindings.initialize(f"/{vehicle_profile}/{osrm_filepath}")
+            osrmbindings.initialize(f"/{vehicle_profile}/{os.environ['osm_filename']}")
             
             route = [start_point]+route+[end_point]
             

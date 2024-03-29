@@ -16,7 +16,6 @@ import os
 
 colorList = sorted(["red","blue","green","orange","purple","yellow","black","pink"])
 
-osrm_filepath = os.environ['osm_filename']
 def folium_map(routes, nodes, manual_editing_mode,
                nodes_for_mapping=None, route_names=None,
                filenamePreString=None, filenamePostString=None,
@@ -348,7 +347,7 @@ def create_visualizations(solution: FinalOptimizationSolution,
         route_names[route_id] = vehicles[route_id].name
 
         #Select the profile for OSRM to construct routes for
-        osrmbindings.initialize(f"/{vehicles[route_id].osrm_profile}/{osrm_filepath}")
+        osrmbindings.initialize(f"/{vehicles[route_id].osrm_profile}/{os.environ['osm_filename']}")
 
         for index, location in enumerate(route): 
             longitudes.append(location[0][1])
