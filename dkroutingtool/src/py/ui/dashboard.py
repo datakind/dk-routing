@@ -94,8 +94,8 @@ def main():
         bounding_box = [min(lats), min(lons), max(lats), max(lons)]
         area = abs(bounding_box[2] - bounding_box[0]) * abs(bounding_box[3] - bounding_box[1]) 
         st.write(f"Bounding box: {bounding_box}, area: {round(area,5)} square units")
-        if area > 0.03:
-            st.write(f'Please choose a smaller area. We allow areas below 0.03')
+        if area > 0.04:
+            st.write(f'Please choose a smaller area. We allow areas below 0.04')
         else:
             map_requested = st.button('Click here to download the area. You do not need to download it again if you try out multiple solutions below')
             if map_requested:
