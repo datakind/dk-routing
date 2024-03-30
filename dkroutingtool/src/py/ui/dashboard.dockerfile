@@ -10,4 +10,4 @@ COPY dashboard.py /src/app
 
 EXPOSE 8501
 
-CMD streamlit run /src/app/dashboard.py --server.enableCORS=False --browser.gatherUsageStats=False --theme.base="dark" --server.address=0.0.0.0
+CMD streamlit run /src/app/dashboard.py --browser.gatherUsageStats=False --theme.base="dark" --server.address=0.0.0.0
