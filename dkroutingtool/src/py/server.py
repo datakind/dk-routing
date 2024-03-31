@@ -67,13 +67,14 @@ def download():
 
 
 @app.get('/request_map/')
-def request_map(minlat, minlon, maxlat, maxlon):
-    
+def request_map(minlat, minlon, maxlat, maxlon):    
     request_template = f'''
     [out:xml]
     [bbox:{minlon},{minlat}, {maxlon}, {maxlat}];
-    nwr[!"building"][!"boundary"];
+    nw[~"^(access|barrier|oneway|bollard|bridge|highway|route|maxspeed|junction|area)$"~"."];
     out body;
+    >;
+    out body qt;
     '''
     url = 'https://overpass-api.de/api/interpreter'
     print(request_template)
@@ -85,7 +86,12 @@ def request_map(minlat, minlon, maxlat, maxlon):
     return {'message': 'Done'}
 
 
-def temporary_build_profiles():
+@app.get('/available_vehicles')
+def request_vehicles():
+    return {'message': f'{get_vehicles()}'}
+
+
+def get_vehicles():
     with open('/build_parameters.yml', 'r') as opened:
         all_lines = opened.readlines()
         desired_vehicles = []
@@ -98,6 +104,11 @@ def temporary_build_profiles():
                     break
             if 'vehicle-types' in line:
                 found_types = True
+    return desired_vehicles
+
+
+def temporary_build_profiles():
+    desired_vehicles = get_vehicles()
 
     print('Extracting-contracting networks per vehicle')
 

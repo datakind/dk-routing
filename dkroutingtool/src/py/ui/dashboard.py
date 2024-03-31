@@ -82,8 +82,10 @@ def upload_data(files_from_streamlit):
 
 def main():
     st.header('Container-based Action Routing Tool (CART)')
-
-    st.write('If required, draw a rectangle over the area you want to use for routing. Please select an area as small as possible.')
+    
+    st.write('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
+    
+    st.write('If required, draw a rectangle over the area you want to use for routing. Download it again only if you updated the OpenStreetMap data. Please select an area as small as possible.')
     m = folium.Map(location=[-11.9858, -77.019], zoom_start=5)
     Draw(export=False).add_to(m)
     map_output = st_folium(m, width=700, height=500)

@@ -3,7 +3,7 @@ Build:
         geofabrik-url: https://download.geofabrik.de/europe/monaco-latest.osm.pbf
     vehicle-types:  
         - wheelbarrow
-        - 3wheeler
+        - avoidsteep3wheeler
 
 Run:
     storage-context: gdrive
