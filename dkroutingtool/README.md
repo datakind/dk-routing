@@ -1,7 +1,7 @@
 
 # CART General Instructions
 
-You'll need to install docker (e.g. Rancher Desktop) and yq.
+You'll need to install docker (e.g. Rancher Desktop) and yq. You can also download a prebuilt docker image by executing `ghcr.io/datakind/dk-routing:main`.
 
 The only vehicle profiles available are the ones defined in the directory `veh_profiles`, so make sure to have at least one profile there before building the solution. Feel free to add your own profiles as needed.
 
