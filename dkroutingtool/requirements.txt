@@ -6,7 +6,7 @@ branca==0.4.1
 certifi==2020.6.20
 #cffi==1.12.2
 chardet==3.0.4
-cryptography==3.2
+cryptography==42.0.2
 decorator==4.4.0
 docutils==0.14
 et-xmlfile==1.0.1
@@ -34,7 +34,7 @@ pybind11==2.3.0
 pycosat==0.6.3
 pycparser==2.19
 Pygments==2.4.2
-pyOpenSSL==19.0.0
+pyOpenSSL==24.1.0
 PySocks==1.6.8
 pytest==7.1.2
 python-bond==1.4
@@ -49,7 +49,6 @@ ujson==1.35
 urllib3==1.25.8
 wcwidth==0.1.7
 xlrd==1.2.0
-notebook==6.1.5
 google-api-core==1.23.0
 google-api-python-client==1.12.5
 google-auth==1.23.0

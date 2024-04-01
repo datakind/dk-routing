@@ -18,8 +18,6 @@ import ujson
 import osrmbindings
 import elevation_utils
 
-osrm_filepath = os.environ['osm_filename']
-
 verbose = False
 
 class NodeData:
@@ -453,7 +451,7 @@ class NodeLoader:
         )
 
     @staticmethod
-    def build_veh_matrices(config_manager, nodes, elevation_factor, consider_elevation = False):
+    def build_veh_matrices(config_manager, nodes, elevation_factor=100, consider_elevation = False):
         veh_time_osrmmatrix_dict = {}
         veh_dist_osrmmatrix_dict = {}
         veh_elevation_cost_osrmmatrix_dict = {}
@@ -507,7 +505,7 @@ class NodeLoader:
             
             for profile in self.config_manager.get_build_parameters().get_vehicle_profiles():
                 veh = profile
-                osrmbindings.initialize(f"/{veh}/{osrm_filepath}")
+                osrmbindings.initialize(f"/{veh}/{os.environ['osm_filename']}")
                 snapped_lat_profile = []
                 snapped_long_profile = []
                 snapped_dist_profile = []
@@ -598,7 +596,7 @@ class NodeLoader:
             distances (np array): distance matrix
             snapped_gps_coords (np array): snapped gps coordinates
         """
-        osrmbindings.initialize(f"/{veh}/{osrm_filepath}")
+        osrmbindings.initialize(f"/{veh}/{os.environ['osm_filename']}")
 
         latitudes = lat_long_coords[:,0].tolist()
         longitudes = lat_long_coords[:,1].tolist()
