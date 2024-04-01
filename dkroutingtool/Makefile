@@ -2,10 +2,10 @@ build:
 	sh s_build_docker_dev.sh
 
 interact:
-	docker run --name server --rm --network host -it dkroutingtool:dev bash
+	docker run --name server --rm --network host -it dk-routing:main bash
 
 run_and_serve:
-	docker run --name server --network host -d --rm dkroutingtool:dev /opt/conda/bin/python src/py/server.py
+	docker run --name server --network host -d --rm dk-routing:main /opt/conda/bin/python src/py/server.py
 
 serve:
 	/opt/conda/bin/python /src/py/server.py &
