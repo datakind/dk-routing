@@ -44,7 +44,7 @@ COPY requirements.txt .
 
 RUN /opt/conda/bin/python -m pip install -r requirements.txt
 
-RUN conda install cffi==1.12.2
+#RUN conda install cffi==1.12.2
 
 RUN apt-get -y install vim
 
@@ -96,7 +96,8 @@ RUN mkdir -p py-lib
 
 RUN mv osrm-backend/example/build/osrmbindings.cpython-37m-x86_64-linux-gnu.so py-lib/
 
-RUN pip uninstall -y typing-extensions && pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
+#RUN pip uninstall -y typing-extensions && pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
+RUN pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
 
 COPY src src
 

@@ -57,7 +57,7 @@ def adjust(adjusted_file):
     else: 
         message = 'Error, verify the adjusted routes file or raise an issue'
     
-    solution, map = download_solution(solution_path='manual_edits/manual_solution.txt', map_path='maps/trip_data.html')
+    solution, map, solution_zip = download_solution(solution_path='manual_edits/manual_solution.txt', map_path='maps/trip_data.html')
     return message, solution, map
 
 def upload_data(files_from_streamlit):

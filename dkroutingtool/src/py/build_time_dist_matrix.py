@@ -451,7 +451,7 @@ class NodeLoader:
         )
 
     @staticmethod
-    def build_veh_matrices(config_manager, nodes, elevation_factor, consider_elevation = False):
+    def build_veh_matrices(config_manager, nodes, elevation_factor=100, consider_elevation = False):
         veh_time_osrmmatrix_dict = {}
         veh_dist_osrmmatrix_dict = {}
         veh_elevation_cost_osrmmatrix_dict = {}
