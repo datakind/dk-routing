@@ -7,10 +7,11 @@ import streamlit.components.v1 as components
 from folium.plugins import Draw
 from streamlit_folium import st_folium
 import folium
+import os
 
 st.set_page_config(page_title='Container-based Action Routing Tool (CART)', layout="wide")
 
-host_url = 'http://localhost:5001'
+host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 
 def download_solution(solution_path, map_path):
     timestamp = datetime.datetime.now().strftime(format='%Y%m%d-%H-%M-%S')
