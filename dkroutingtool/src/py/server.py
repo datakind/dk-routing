@@ -12,39 +12,41 @@ import subprocess
 
 app = fastapi.FastAPI()
 
-def find_most_recent_output():
-    most_recent = sorted(glob.glob('/WORKING_DATA_DIR/output_data/*'))[-1]
+def find_most_recent_output(session_id):
+    most_recent = sorted(glob.glob(f'/WORKING_DATA_DIR/data{session_id}/output_data/*'))[-1]
     return most_recent
 
 @app.post('/provide_files')
-def provide_files(files: List[UploadFile] = File(...)):
+def provide_files(files: List[UploadFile] = File(...), session_id: str=''):
     for file in files:
         contents = file.file.read()
-        print(contents)
-        with open(f'/data/{file.filename}', 'wb') as f:
+        #print(contents)
+        provided = f'/data{session_id}/{file.filename}'
+        os.makedirs(os.path.dirname(provided), exist_ok=True)
+        with open(provided, 'wb') as f:
             f.write(contents)
         file.file.close()
     return {'message': 'Uploaded'}
 
 
 @app.get('/get_solution')
-def get_solution():
+def get_solution(session_id: str=''):
     main_application.args.cloud = False
     main_application.args.manual_mapping_mode = False
     main_application.args.manual_input_path = None
 
-    main_application.main()
+    main_application.main(user_directory=f'data{session_id}')
     return {'message': 'Done'}
 
 
 @app.post('/adjust_solution')
-def get_solution(files: List[UploadFile] = File(...)):
-    most_recent = find_most_recent_output()
+def get_solution(files: List[UploadFile] = File(...), session_id: str=''):
+    most_recent = find_most_recent_output(session_id)
     print(most_recent)
 
     for file in files:
         contents = file.file.read()
-        print(contents)
+        #print(contents)
         with open(f'{most_recent}/manual_edits/{file.filename}', 'wb') as f:
             f.write(contents)
         file.file.close()
@@ -52,13 +54,13 @@ def get_solution(files: List[UploadFile] = File(...)):
     main_application.args.cloud = False
     main_application.args.manual_mapping_mode = True
     main_application.args.manual_input_path = f'{most_recent}/manual_edits'
-    main_application.main()
+    main_application.main(user_directory=f'data{session_id}')
     return {'message': 'Manual solution updated, please download again'}
 
 
 @app.get('/download')
-def download():
-    most_recent = find_most_recent_output()
+def download(session_id: str=''):
+    most_recent = find_most_recent_output(session_id)
     print(most_recent)
     name= 'server_output'
     shutil.make_archive(name, 'zip', most_recent)
