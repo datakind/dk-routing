@@ -2,10 +2,10 @@ build:
 	sh s_build_docker_dev.sh
 
 interact:
-	docker run --name server --rm --network host -it ghcr.io/datakind/dk-routing:main bash
+	docker run --name server --rm -p 5001:5001 -it ghcr.io/datakind/dk-routing:main bash
 
 run_and_serve:
-	docker run --name server --network host -d --rm ghcr.io/datakind/dk-routing:main /opt/conda/bin/python src/py/server.py
+	docker run --name server -p 5001:5001 -d --rm ghcr.io/datakind/dk-routing:main /opt/conda/bin/python src/py/server.py
 
 serve:
 	/opt/conda/bin/python /src/py/server.py &
@@ -15,10 +15,27 @@ test:
 
 dockergui:
 	cd src/py/ui && docker build -t dashboard -f dashboard.dockerfile . 
-	docker run --name dashboard --network host -d --rm dashboard:latest
+	docker run -e SERVER_HOST='localhost' --name dashboard --network host -d --rm dashboard:latest
 
 gui:
-	cd src/py/ui && streamlit run dashboard.py
+	export SERVER_HOST='localhost' && cd src/py/ui && streamlit run dashboard.py
 
 #go to http://localhost:8501/ in your browser and it should work
-demo: run_and_serve dockergui
+demo:
+	cd src/py/ui && docker build -t dashboard -f dashboard.dockerfile .
+	docker run \
+		--add-host=host.docker.internal:host-gateway \
+		--name server \
+		-p 5001:5001 \
+		-d \
+		--rm \
+		ghcr.io/datakind/dk-routing:main \
+		/opt/conda/bin/python src/py/server.py
+	docker run \
+		-e SERVER_HOST='host.docker.internal' \
+		--add-host=host.docker.internal:host-gateway \
+		--name dashboard \
+		-p 8501:8501 \
+		-d \
+		--rm \
+		dashboard:latest
