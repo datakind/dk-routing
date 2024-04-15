@@ -34,13 +34,12 @@ parser.add_argument('--manual', dest='manual_mapping_mode', action='store_true')
 parser.add_argument('--manual_input_path', dest='manual_input_path', default=None)
 args = parser.parse_args()
 
-OUTPUT_DATA_DIR = 'WORKING_DATA_DIR/output_data/'
-INPUT_DATA_DIR = 'WORKING_DATA_DIR/input_data/'
-LOCAL_TEST_INPUT_DATA_DIR = 'data/'
-
 gpx_output = True
 
-def main():
+def main(user_directory='data'):
+    OUTPUT_DATA_DIR = f'WORKING_DATA_DIR/{user_directory}/output_data/'
+    INPUT_DATA_DIR = f'WORKING_DATA_DIR/{user_directory}/input_data/' # should test cloud setting eventually
+    
     timestamp = time.strftime("%Y_%m_%d_%H_%M")
     logging.info(f"Model Run Initiated {timestamp} (UTC)")
 
@@ -65,7 +64,7 @@ def main():
             cloud_client, local_input_dir, args.manual_mapping_mode
         )
     else:
-        local_input_dir = LOCAL_TEST_INPUT_DATA_DIR
+        local_input_dir = user_directory+'/'
         logging.info(f"Loading input from local {local_input_dir}")
         config_manager = ConfigManager.load_from_local(
             local_input_dir, args.manual_mapping_mode, args.manual_input_path)

@@ -8,14 +8,18 @@ from folium.plugins import Draw
 from streamlit_folium import st_folium
 import folium
 import os
+from streamlit.runtime import get_instance
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 st.set_page_config(page_title='Container-based Action Routing Tool (CART)', layout="wide")
 
+runtime = get_instance()
+session_id = get_script_run_ctx().session_id
 host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 
 def download_solution(solution_path, map_path):
     timestamp = datetime.datetime.now().strftime(format='%Y%m%d-%H-%M-%S')
-    response = requests.get(f'{host_url}/download')
+    response = requests.get(f'{host_url}/download/?session_id={session_id}')
 
     solution_zip = response.content
 
@@ -34,7 +38,7 @@ def download_solution(solution_path, map_path):
     return solution, map, solution_zip
 
 def request_solution():
-    response = requests.get(f'{host_url}/get_solution')
+    response = requests.get(f'{host_url}/get_solution/?session_id={session_id}')
     solution, map, solution_zip = download_solution(solution_path='solution.txt', map_path='/maps/route_map.html')
 
     return solution, map, solution_zip
@@ -52,14 +56,14 @@ def adjust(adjusted_file):
     }
 
     files = {'files': adjusted_file[0]} # We only expect one
-    response = requests.post(f'{host_url}/adjust_solution', headers=headers, files=files)
+    response = requests.post(f'{host_url}/adjust_solution/?session_id={session_id}', headers=headers, files=files)
     if response.ok:
         message = "Adjusted routes successfully uploaded"
     else: 
         message = 'Error, verify the adjusted routes file or raise an issue'
     
     solution, map, solution_zip = download_solution(solution_path='manual_edits/manual_solution.txt', map_path='maps/trip_data.html')
-    return message, solution, map
+    return message, solution, map, solution_zip
 
 def upload_data(files_from_streamlit):
     files = [('files', file) for file in files_from_streamlit]
@@ -75,7 +79,7 @@ def upload_data(files_from_streamlit):
     #    ('files', open('local_data/extra_points.csv', 'rb')),
     #    ('files', open('local_data/customer_data.xlsx', 'rb'))]
 
-    response = requests.post(f'{host_url}/provide_files', headers=headers, files=files)
+    response = requests.post(f'{host_url}/provide_files/?session_id={session_id}', headers=headers, files=files)
     if response.ok:
         return 'All files uploaded successfully'
     else:
@@ -83,7 +87,7 @@ def upload_data(files_from_streamlit):
 
 def main():
     st.header('Container-based Action Routing Tool (CART)')
-    
+
     st.write('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
     
     st.write('If required, draw a rectangle over the area you want to use for routing. Download it again only if you updated the OpenStreetMap data. Please select an area as small as possible.')
@@ -130,8 +134,10 @@ def main():
     uploaded_files = st.file_uploader('If adjustments are made in the manual_edits spreadsheet, upload it here to get adjusted solutions', accept_multiple_files=True)
     if len(uploaded_files) > 0:
         with st.spinner('Adjusting routes, please wait...'):
-            response, solution, map = adjust(uploaded_files)
+            response, solution, map, solution_zip = adjust(uploaded_files)
         st.write(response)
+        b64 = base64.b64encode(solution_zip).decode()
+        st.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="solution.zip">Download solution files</a>', unsafe_allow_html=True)
         components.html(map, height = 800)
         st.write(solution)
 
