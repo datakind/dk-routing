@@ -55,7 +55,7 @@ class ConfigManager(object):
 
         return ConfigManager.load(ConfigFileLocations(
                 routing_config_file=f"{local_dir}/config.json",
-                build_parameters_file='build_parameters.yml',
+                build_parameters_file=f"{local_dir}/../build_parameters.yml",
                 gps_input_files=GPSInputPaths(
                     gps_file=f"{local_dir}/customer_data.xlsx",
                     custom_header_file=f"{local_dir}/custom_header.yaml",
@@ -82,7 +82,7 @@ class ConfigManager(object):
         return ConfigManager.load(
             ConfigFileLocations(
                 routing_config_file=f"{local_dir}/config.json",
-                build_parameters_file='build_parameters.yml',
+                build_parameters_file=f"{local_dir}/../build_parameters.yml",
                 gps_input_files=GPSInputPaths(
                     gps_file=f"{local_dir}/customer_data.xlsx",
                     custom_header_file=f"{local_dir}/custom_header.yaml",
