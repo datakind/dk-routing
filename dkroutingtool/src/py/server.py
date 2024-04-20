@@ -9,6 +9,7 @@ import shutil
 import requests
 import os
 import subprocess
+import shutil
 
 app = fastapi.FastAPI()
 
@@ -34,8 +35,12 @@ def get_solution(session_id: str=''):
     main_application.args.cloud = False
     main_application.args.manual_mapping_mode = False
     main_application.args.manual_input_path = None
-
-    main_application.main(user_directory=f'data{session_id}')
+    # For demo purposes, if the user hasn't uploaded any when asking for a solution,
+    #   use a defaults directory:
+    if 'session_id' in locals():
+        main_application.main(user_directory=f'data{session_id}')
+    else:
+        main_application.main(user_directory=f'/data')
     return {'message': 'Done'}
 
 
