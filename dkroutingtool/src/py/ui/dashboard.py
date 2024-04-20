@@ -46,8 +46,10 @@ def request_solution():
 def request_map(bounding_box):
     response = requests.get(f'{host_url}/request_map/?minlat={bounding_box[0]}&minlon={bounding_box[1]}&maxlat={bounding_box[2]}&maxlon={bounding_box[3]}')
     
-
     return True
+
+def update_vehicle_or_map():
+    response = requests.post(f'{host_url}/update_vehicle_or_map/?session_id={session_id}')
 
 def adjust(adjusted_file):
     headers = {
@@ -88,7 +90,8 @@ def upload_data(files_from_streamlit):
 def main():
     st.header('Container-based Action Routing Tool (CART)')
 
-    st.write('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
+    vehicles_text = st.empty()
+    vehicles_text.text('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
     
     st.write('If required, draw a rectangle over the area you want to use for routing. Download it again only if you updated the OpenStreetMap data. Please select an area as small as possible.')
     m = folium.Map(location=[-11.9858, -77.019], zoom_start=5)
@@ -114,6 +117,11 @@ def main():
     if len(uploaded_files) > 0:
         response = upload_data(uploaded_files)
         st.write(response)
+        vehicle_or_map_update_requested = st.button('If updated vehicles + updated build_paramters.yml or a *.osm.pbf map was uploaded, click here to update.')
+        if vehicle_or_map_update_requested:
+            with st.spinner('Rebuilding based on updated vehicles/maps. This may take a few minutes, please wait...'):
+                update_vehicle_or_map()
+            vehicles_text.text('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
 
     st.write('Calculating a solution will take up to twice the amount of time specified by the config file')
     
