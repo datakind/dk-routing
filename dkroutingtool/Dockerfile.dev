@@ -101,6 +101,6 @@ RUN pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
 
 COPY src src
 
-ENV PYTHONPATH "${PYTHONPATH}:./py-lib:/src/python"
+ENV PYTHONPATH "${PYTHONPATH}:/py-lib:/src/python"
 
 CMD ["/opt/conda/bin/python", "src/py/main_application.py", "--local"]
