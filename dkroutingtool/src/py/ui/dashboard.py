@@ -19,7 +19,10 @@ host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 
 def download_solution(solution_path, map_path):
     timestamp = datetime.datetime.now().strftime(format='%Y%m%d-%H-%M-%S')
-    response = requests.get(f'{host_url}/download/?session_id={session_id}')
+    if 'session_id' in locals():
+        response = requests.get(f'{host_url}/download/?session_id={session_id}')
+    else:
+        response = requests.get(f'{host_url}/download')
 
     solution_zip = response.content
 
@@ -38,7 +41,10 @@ def download_solution(solution_path, map_path):
     return solution, map, solution_zip
 
 def request_solution():
-    response = requests.get(f'{host_url}/get_solution/?session_id={session_id}')
+    if 'session_id' in locals():
+        response = requests.get(f'{host_url}/get_solution/?session_id={session_id}')
+    else:
+        response = requests.get(f'{host_url}/get_solution')
     solution, map, solution_zip = download_solution(solution_path='solution.txt', map_path='/maps/route_map.html')
 
     return solution, map, solution_zip
