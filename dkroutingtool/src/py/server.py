@@ -43,15 +43,18 @@ def update_vehicle_or_map(session_id: str=''):
     if vehicle_files:
         for curr_file in vehicle_files:
             os.replace(curr_file, os.path.join('/osrm-backend/profiles', os.path.basename(curr_file)))
+            veh_directory = '/'+os.path.basename(curr_file)[:-4] # removing the extension
+            if not os.path.exists(veh_directory):
+                os.makedirs(veh_directory)
         build_profiles = True
     # Look for osm.pbf file. Just pulls the first in sorted order if multiple are present.
     map_files = sorted(glob.glob(f'/data{session_id}/*.pbf'))
     if map_files:
         os.environ['osm_filename'] = 'upload_map'
-        os.replace(map_files[0], '/upload_map.osm')
+        os.replace(map_files[0], '/upload_map.osm.pbf')
         build_profiles = True
     if build_profiles:
-        temporary_build_profiles()
+        temporary_build_profiles(osmpbf=True)
 
 @app.get('/get_solution')
 def get_solution(session_id: str=''):
@@ -133,7 +136,7 @@ def get_vehicles():
     return desired_vehicles
 
 
-def temporary_build_profiles():
+def temporary_build_profiles(osmpbf=False):
     desired_vehicles = get_vehicles()
 
     print('Extracting-contracting networks per vehicle')
@@ -149,7 +152,10 @@ def temporary_build_profiles():
         if vehicle_name not in desired_vehicles:
             continue
         print('Building', vehicle_file)
-        subprocess.run(['osrm-extract', '-p', vehicle_file, f'/{osm_filename}.osm'])
+        if not osmpbf:
+            subprocess.run(['osrm-extract', '-p', vehicle_file, f'/{osm_filename}.osm'])
+        else:
+            subprocess.run(['osrm-extract', '-p', vehicle_file, f'/{osm_filename}.osm.pbf'])
         subprocess.run(f'mv {osm_filename}.osrm* {vehicle_name}/', shell=True)
         subprocess.run(['osrm-contract', f'{osm_filename}.osrm'], cwd=vehicle_name)
     
