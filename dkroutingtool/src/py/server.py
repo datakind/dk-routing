@@ -28,6 +28,30 @@ def provide_files(files: List[UploadFile] = File(...), session_id: str=''):
         file.file.close()
     return {'message': 'Uploaded'}
 
+@app.post('/update_vehicle_or_map')
+def update_vehicle_or_map(session_id: str=''):
+    # For when user uploads vehicles files + a corresponding build_parameters.yml or a *.pbf map.
+    build_profiles = False
+
+    # Look for and move uploaded build_parameters.yml
+    build_params_file = glob.glob(f'/data{session_id}/build_parameters.yml')
+    if build_params_file:
+        os.replace(build_params_file[0], '/build_parameters.yml')
+        build_profiles = True
+    # Look for and move any vehicle files
+    vehicle_files = glob.glob(f'/data{session_id}/*.lua')
+    if vehicle_files:
+        for curr_file in vehicle_files:
+            os.replace(curr_file, os.path.join('/osrm-backend/profiles', os.path.basename(curr_file)))
+        build_profiles = True
+    # Look for osm.pbf file. Just pulls the first in sorted order if multiple are present.
+    map_files = sorted(glob.glob(f'/data{session_id}/*.pbf'))
+    if map_files:
+        os.environ['osm_filename'] = 'upload_map'
+        os.replace(map_files[0], '/upload_map.osm')
+        build_profiles = True
+    if build_profiles:
+        temporary_build_profiles()
 
 @app.get('/get_solution')
 def get_solution(session_id: str=''):
