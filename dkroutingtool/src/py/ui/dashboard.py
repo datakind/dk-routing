@@ -14,7 +14,8 @@ from streamlit.runtime.scriptrunner import get_script_run_ctx
 st.set_page_config(page_title='Container-based Action Routing Tool (CART)', layout="wide")
 
 runtime = get_instance()
-session_id = get_script_run_ctx().session_id
+session_id = ''
+
 host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 
 def download_solution(solution_path, map_path):
@@ -68,6 +69,9 @@ def adjust(adjusted_file):
     return message, solution, map, solution_zip
 
 def upload_data(files_from_streamlit):
+    global session_id
+    session_id = get_script_run_ctx().session_id # Only identifies a session if configuration files are uploaded
+
     files = [('files', file) for file in files_from_streamlit]
 
     headers = {
@@ -117,7 +121,7 @@ def main():
     if len(uploaded_files) > 0:
         response = upload_data(uploaded_files)
         st.write(response)
-        vehicle_or_map_update_requested = st.button('If updated vehicles + updated build_paramters.yml or a *.osm.pbf map was uploaded, click here to update.')
+        vehicle_or_map_update_requested = st.button('If you uploaded modified *.lua, build_parameters.yml, or *.osm.pbf files, click here to update the network')
         if vehicle_or_map_update_requested:
             with st.spinner('Rebuilding based on updated vehicles/maps. This may take a few minutes, please wait...'):
                 update_vehicle_or_map()
