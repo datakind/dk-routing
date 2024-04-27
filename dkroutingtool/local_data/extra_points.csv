@@ -1,4 +1,3 @@
 GPS (Longitude),GPS (Latitude),id,name,type
--73.96818816,40.67944419,1,waste_basket,Depot
--73.96818816,40.67944419,2,East-UNLOAD,Unload
--73.96818816,40.67944419,3,West-UNLOAD,Unload
+-73.9433372,40.704021,1,seigel_st,Depot
+-73.8845658,40.6639639,2,jerome_st,Depot
