@@ -32,6 +32,7 @@ import osrmbindings
 
 resequencing = True
 resequencing_step_size = 0.0002 # Arbitrary and small, in the scale of long/lat degrees
+#resequencing_step_size = 0.00001
 
 clustering_agglomeration = True #Uses naive thresholding agglomeration unless sprawling is enabled
 agg_threshold_radius = 5 #Units in seconds of travel
@@ -979,8 +980,10 @@ def resequence(node_data, data, routing, routes_all, original_routes, vehicle_pr
             for row in rows:
                 reordered_nodes.append(row)
 
-        new_route_df = pd.DataFrame(reordered_nodes)
-        new_route_df.columns = route_df.columns
+        
+        
+        new_route_df = pd.DataFrame(reordered_nodes, columns=route_df.columns)
+        # Turn off resequence if something's weird, this is less tested
         ordered_nodes[route_key] = new_route_df        
     
     
