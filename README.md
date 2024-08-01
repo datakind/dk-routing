@@ -24,6 +24,7 @@ Here are some features supported by the current release.
 * Exports GPX tracks to be used in turn-by-turn navigation tools (e.g. OSM Automated Navigation Directions at https://osmand.net/) 
 
 # What does it look like?
+Demonstration of the web client: https://github.com/user-attachments/assets/2bae88fa-46aa-4b1b-bb41-19b9792eafeb
 
 An example of a map with all planned trips:
 ![image](https://github.com/datakind/dk-routing/assets/1616150/361cceb3-ea1d-498d-9ba0-d5c46ff8570b)
