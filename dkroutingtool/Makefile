@@ -39,3 +39,22 @@ demo:
 		-d \
 		--rm \
 		dashboard:latest
+
+restartingdemo:
+	cd src/py/ui && docker build -t dashboard -f dashboard.dockerfile .
+	docker run \
+		--add-host=host.docker.internal:host-gateway \
+		--name server \
+		-p 5001:5001 \
+		-d \
+		--restart=always \
+		ghcr.io/datakind/dk-routing:main \
+		/opt/conda/bin/python src/py/server.py
+	docker run \
+		-e SERVER_HOST='host.docker.internal' \
+		--add-host=host.docker.internal:host-gateway \
+		--name dashboard \
+		-p 8501:8501 \
+		-d \
+		--restart=always \
+		dashboard:latest
