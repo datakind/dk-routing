@@ -7,7 +7,7 @@ from .output_object_base import OutputObjectBase
 from .file_manager import FileManager
 from attr import attrs, attrib
 
-matrices_included = True
+matrices_included = False # only use True if you want to look at the data as a diagnostic
 
 @attr.s
 class CleanedNodeData(object):
