@@ -58,3 +58,27 @@ restartingdemo:
 		-d \
 		--restart=always \
 		dashboard:latest
+
+# replace absolute path D:/repos/ with your own
+olddevelop:
+	cd src/py/ui && docker build -t dashboard -f dashboard.dockerfile .
+	docker run \
+		--add-host=host.docker.internal:host-gateway \
+		--name server \
+		-p 5001:5001 \
+		-d \
+		--rm \
+		ghcr.io/datakind/dk-routing:main \
+		/opt/conda/bin/python src/py/server.py
+	docker run \
+		-e SERVER_HOST='host.docker.internal' \
+		--add-host=host.docker.internal:host-gateway \
+		--name dashboard \
+		-p 8501:8501 \
+		-d \
+		--rm \
+		-v D:/repos/dk-routing/dkroutingtool/src/py/ui/:/src/app/ \
+		dashboard:latest
+
+develop:
+	docker compose up
