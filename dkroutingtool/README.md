@@ -121,3 +121,28 @@ export GDRIVECREDSFILE=src/creds/gdrive_creds.json
 # Cloud manual mode
 /opt/conda/bin/python src/py/main_application.py --input test_scenario --manual
 
+# Troubleshooting Steps for New Users (06/01/2025)
+If you try to start the docker container after pulling it, you may get a message in your terminal that looks like this:
+
+`2025-01-01 14:49:56 INFO:root:Running Config-based routing.
+2025-01-01 14:49:56 INFO:root:Building Time/Distance Matrices
+2025-01-01 14:49:56 INFO:root:Num buckets Assumed: 2
+2025-01-01 14:49:56 INFO:root:Starting Model Run at 13:49:56 (UTC)
+2025-01-01 14:49:59 INFO:root:Took 1.8156040000000004 seconds to resequence
+2025-01-01 14:49:59 INFO:root:Total Distance of all routes: 14.276600000000002km
+2025-01-01 14:49:59 INFO:root:Total Time of all routes: 1599.1000000000004min
+2025-01-01 14:50:03 INFO:root:Took 3.667045 seconds to resequence
+2025-01-01 14:50:03 INFO:root:Total Distance of all routes: 21.9679km
+2025-01-01 14:50:03 INFO:root:Total Time of all routes: 2528.1min
+2025-01-01 14:50:03 INFO:root:Optmization Complete: Took 00min 06sec to optimize [['East'], ['West']]
+2025-01-01 14:50:08 INFO:root:Writing output to WORKING_DATA_DIR/data/output_data/input_2025_01_01_13_49
+2025-01-01 14:50:08 INFO:root:Model Run Complete at 13:50:08 (UTC)
+2025-01-01 14:50:08 False
+2025-01-01 14:50:08 False`
+
+This appears to be the default behavior when you attempt to start the docker container. Therefore, in order to get the application up and running locally, you will need to take the following steps:
+
+- Clone the repository or download it as a zip file: You may encounter an error in your terminal when you run `git clone https://github.com/datakind/dk-routing`. Most likely, the error occurs because the buffer size of your installed Git is too small to be able to successfully clone the repository, which is quite large. Therefore, the solution is to manually increase the buffer size of Git by running something like `git config --global http.postBuffer 104857600` in your terminal. This increases your Git buffer size to 100MB. With that done, try cloning the repository again, and you should succeed this time. 
+- Having successfully cloned the repository, the next step is to change into the `dkroutingtool` directory, which is a subdirectory in `dk-routing`. In your terminal, run `cd dkroutingtool`. If you downloaded the repository as a zip file, unzip it and change into the `dkroutingtool` subdirectory.
+- Now that you are inside the `dkroutingtool` subdirectory, run `docker compose up`. Make sure you have started docker desktop prior to running the docker compose command. Otherwise, you will get an error in your terminal.
+- With that command successfully executed, as a last step, navigate to `localhost:8501` in your browser and you should see the CART streamlit application running and ready to be explored.
