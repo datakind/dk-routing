@@ -12,6 +12,8 @@ import subprocess
 
 app = fastapi.FastAPI()
 
+stateful_info = dict()
+
 def find_most_recent_output(session_id):
     most_recent = sorted(glob.glob(f'/WORKING_DATA_DIR/data{session_id}/output_data/*'))[-1]
     return most_recent
@@ -65,6 +67,9 @@ def get_solution(session_id: str=''):
     main_application.main(user_directory=f'data{session_id}')
     return {'message': 'Done'}
 
+@app.get('/get_map_info')
+def get_map_info():
+    return {'message': stateful_info.get('bounding_box')}
 
 @app.post('/adjust_solution')
 def get_solution(files: List[UploadFile] = File(...), session_id: str=''):
@@ -96,7 +101,9 @@ def download(session_id: str=''):
 
 
 @app.get('/request_map/')
-def request_map(minlat, minlon, maxlat, maxlon):    
+def request_map(minlat, minlon, maxlat, maxlon):  
+    stateful_info['bounding_box'] = [minlat, minlon, maxlat, maxlon]
+
     request_template = f'''
     [out:xml]
     [bbox:{minlon},{minlat}, {maxlon}, {maxlat}];
