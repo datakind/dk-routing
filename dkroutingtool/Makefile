@@ -81,4 +81,7 @@ olddevelop:
 		dashboard:latest
 
 develop:
-	docker compose up
+	docker compose up &
+
+cleanup:
+	docker compose down

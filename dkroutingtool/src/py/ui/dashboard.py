@@ -116,11 +116,11 @@ def main():
             coords = map_output['last_active_drawing']['geometry']['coordinates']
             lats = [coords[0][i][0] for i in range(5)] # 5 because we expect a rectangle including its center point
             lons = [coords[0][i][1] for i in range(5)]
-            bounding_box = [min(lats), min(lons), max(lats), max(lons)]
+            bounding_box = [min(lats), min(lons), max(lats), max(lons)] # did I invert lats and lons here?
             area = abs(bounding_box[2] - bounding_box[0]) * abs(bounding_box[3] - bounding_box[1]) 
             st.write(f"Bounding box: {bounding_box}, area: {round(area,5)} Cartesian square units")
-            if area > 0.1:
-                st.write(f'Please choose a smaller area. We allow areas below 0.04')
+            if area > 0.05:
+                st.write(f'Please choose a smaller area. We typically allow areas below 0.05')
             else:
                 map_requested = st.button('Click here to download the area. You do not need to download it again if you try out multiple solutions below')
                 if map_requested:
@@ -166,10 +166,9 @@ def main():
                     extra_coordinates = extra[['GPS (Latitude)','GPS (Longitude)']]
                     #st.write(extra)
             all_coords = np.concatenate([customers[lat_lon_columns].values, extra_coordinates.values])
-            
             minima = all_coords.min(axis=0)-0.07 # 0.1 being a buffer for the road network
             maxima = all_coords.max(axis=0)+0.07
-            bounding_box = [minima[0], minima[1], maxima[0], maxima[1]]
+            bounding_box = [minima[1], minima[0], maxima[1], maxima[0]] 
             area = abs(bounding_box[2] - bounding_box[0]) * abs(bounding_box[3] - bounding_box[1]) 
             
             response = requests.get(f'{host_url}/get_map_info/')
