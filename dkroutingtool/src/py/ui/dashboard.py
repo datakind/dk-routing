@@ -59,8 +59,8 @@ def request_map(bounding_box):
 def update_vehicle_or_map():
     response = requests.post(f'{host_url}/update_vehicle_or_map/?session_id={session_id}')
 
-def calculate_bounding_box():
-    pass
+def bound_check(new, old):
+    return old[0] <= new[0] and old[1] <= new[1] and old[2] >= new[2] and old[3] >= new[3] 
 
 def adjust(adjusted_file):
     headers = {
@@ -138,43 +138,46 @@ def main():
 
     if len(uploaded_files) > 0:
         
+        # validation steps
         for uploaded in uploaded_files:
             if uploaded.name == 'config.json':
                 try:
                     loaded = json.load(uploaded)
                     uploaded.seek(0)
                 except json.JSONDecodeError:
-                    st.error('The file config.json is not valid JSON. Please validate the syntax in a text editor.')
+                    st.error('The file config.json is not valid JSON. Please validate the syntax in a text editor')
             if uploaded.name.endswith('lua') or uploaded.name.endswith('osm.pbf') or uploaded.name.endswith('build_parameters.yml'):
                 extra_configuration = True
-
-        if recalculate_map:
-            for uploaded in uploaded_files:
-                if uploaded.name == 'customer_data.xlsx':
+            
+            if uploaded.name == 'customer_data.xlsx':
                     customers = pd.read_excel(uploaded)
                     uploaded.seek(0)
-                    #st.write(customers)
-                if uploaded.name == 'custom_header.yaml':
+            if uploaded.name == 'custom_header.yaml':
                     headers = yaml.load(uploaded, Loader=yaml.CLoader)
                     uploaded.seek(0)
-                    lat_lon_columns.append(headers['lat_orig'])
-                    lat_lon_columns.append(headers['long_orig'])
-                    #st.write(headers)
-                if uploaded.name == 'extra_points.csv':
-                    extra = pd.read_csv(uploaded)
-                    uploaded.seek(0)
-                    extra_coordinates = extra[['GPS (Latitude)','GPS (Longitude)']]
-                    #st.write(extra)
+
+            if uploaded.name == 'extra_points.csv':
+                extra = pd.read_csv(uploaded)
+                uploaded.seek(0)
+
+        mandatory_columns = ['lat_orig', 'long_orig', 'name', 'zone']
+        for column in mandatory_columns:
+            to_check = headers.get(column)
+            unknown_values = customers[to_check].isna().sum()
+            if unknown_values > 0:
+                st.error(f'{to_check} has {unknown_values} invalid value(s) (blank, missing, etc.), please verify customer_data.xlsx')
+
+        if recalculate_map:
+            lat_lon_columns.append(headers['lat_orig'])
+            lat_lon_columns.append(headers['long_orig'])
+            extra_coordinates = extra[['GPS (Latitude)','GPS (Longitude)']]
+
             all_coords = np.concatenate([customers[lat_lon_columns].values, extra_coordinates.values])
-            minima = all_coords.min(axis=0)-0.07 # 0.1 being a buffer for the road network
-            maxima = all_coords.max(axis=0)+0.07
+            area_buffer = 0.07 # adding a buffer for the road network, 0.1 is about 11 km long at the equator
+            minima = all_coords.min(axis=0)-area_buffer
+            maxima = all_coords.max(axis=0)+area_buffer
             bounding_box = [minima[1], minima[0], maxima[1], maxima[0]] 
             area = abs(bounding_box[2] - bounding_box[0]) * abs(bounding_box[3] - bounding_box[1]) 
-            
-            response = requests.get(f'{host_url}/get_map_info/')
-            old_bounding_box = [0,0,0,0]
-            if response.json()["message"] is not None:
-                old_bounding_box = tuple(map(np.float64, response.json()['message']))
             
         response = upload_data(uploaded_files)
         st.write(response)
@@ -186,17 +189,23 @@ def main():
                 vehicles_text.text('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
 
         if recalculate_map:
-            if tuple(bounding_box) == old_bounding_box:
-                st.write('The currently available map covers the same area, no need to redownload it unless you edited OSM since the last download')
+            response = requests.get(f'{host_url}/get_map_info/')
+            old_bounding_box = [0,0,0,0]
+            if response.json()["message"] is not None:                
+                old_bounding_box = tuple(map(np.float64, response.json()['message']))
+
+            if bound_check(tuple(bounding_box), old_bounding_box):
+                st.write(':heavy_check_mark: The currently available map covers the desired area, no need to redownload it unless you edited OSM since the last download')
             else:
-                st.error("It would be recommended to download the area as you have locations in your input data outside the currently downloaded area")
+                st.error(f"It would be recommended to download the area as you have locations in your input data outside the currently downloaded area. The size is {round(area,2)} in Cartesian square units, be mindful that values above 0.2 may lead to the download taking many minutes")
             
-            map_requested_auto = st.button(f'Click here to download the area ({round(area,2)} in Cartesian square units). You do not need to download it again if you try out multiple scenarios with the same customer_data.xlsx file')
+            map_requested_auto = st.button(f'Click here to download the area. You do not need to download it again if you try out multiple scenarios with the same customer_data.xlsx file')
+            
             if map_requested_auto:
                 with st.spinner('Downloading the road network. Please wait...'):
                     request_map(bounding_box)
-                st.write('Road network ready for routing')
-
+                #st.write(':heavy_check_mark: Road network ready for routing')
+                st.rerun() 
         st.write('Calculating a solution will take up to twice the amount of time specified by the config file')
         solution_requested = st.button('Click here to calculate routes')
     
