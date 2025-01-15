@@ -128,15 +128,27 @@ def main():
                         request_map(bounding_box)
                     st.write('Road network ready for routing')
 
-    uploaded_files = st.file_uploader('Upload all required files (config.json, customer_data.xlsx, extra_points.csv, custom_header.yaml)', accept_multiple_files=True)
+    uploaded_files = st.file_uploader('Upload all required files (config.json, customer_data.xlsx, extra_points.csv, custom_header.yaml). You can refer to the [files here as an example](https://github.com/datakind/dk-routing/tree/main/dkroutingtool/local_data)', accept_multiple_files=True)
+    mandatory_files = ['config.json', 'custom_header.yaml', 'customer_data.xlsx', 'extra_points.csv']
+
+    for uploaded in uploaded_files:
+        uploaded.name = uploaded.name.lower()
+
+    present = []
+    for uploaded in uploaded_files:
+        present.append(uploaded.name)
+    missing_files = set(mandatory_files).difference(set(present))
     
+    if len(missing_files) > 0:
+        st.error(f'Missing files: {list(missing_files)}')
+
     lat_lon_columns = []
 
     extra_configuration = False
 
     solution_requested = False
-
-    if len(uploaded_files) > 0:
+    
+    if len(uploaded_files) > 0 and len(missing_files) == 0:
         
         # validation steps
         for uploaded in uploaded_files:
@@ -160,13 +172,29 @@ def main():
                 extra = pd.read_csv(uploaded)
                 uploaded.seek(0)
 
-        mandatory_columns = ['lat_orig', 'long_orig', 'name', 'zone']
+        mandatory_columns = ['lat_orig', 'long_orig', 'name', 'zone', 'buckets']
+        optional_columns = ['closed', 'additional_info', 'time_windows']
         for column in mandatory_columns:
             to_check = headers.get(column)
-            unknown_values = customers[to_check].isna().sum()
-            if unknown_values > 0:
-                st.error(f'{to_check} has {unknown_values} invalid value(s) (blank, missing, etc.), please verify customer_data.xlsx')
-
+            if to_check in customers.columns:
+                unknown_values = customers[to_check].isna().sum()
+                if unknown_values > 0:
+                    added = ''
+                    if column == 'buckets':
+                        added = ' If the number of containers is unknown for a particular customer, please enter 0 as the value and the software will assume a default value.'
+                    st.error(f'{to_check} has {unknown_values} invalid value(s) (blank, missing, etc.), please verify customer_data.xlsx before proceeding.{added}')
+            else:
+                st.error(f'{to_check} is missing in customer_data.xlsx and it is a mandatory column, please add it before proceeding or specify the right column in custom_header.yaml.')
+        for column in optional_columns:
+            to_check = headers.get(column)
+            if to_check in customers.columns:
+                unknown_values = customers[to_check].isna().sum()
+                if unknown_values > 0:
+                    st.write(f":grey_question: {to_check} has {unknown_values} invalid value(s) (blank, missing, etc.), please make this is fine for your use case")
+            else:
+                st.write(f":grey_question: {to_check} is not found in customer_data.xlsx, please make sure it is not needed for your use case")
+        
+        # automatic area selection
         if recalculate_map:
             lat_lon_columns.append(headers['lat_orig'])
             lat_lon_columns.append(headers['long_orig'])
