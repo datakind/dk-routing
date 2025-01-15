@@ -5,9 +5,9 @@ lat_orig: lat # Latitude of the node, in the most popular typical projection (EP
 long_orig: lon # Longitude of the node, in the most popular typical projection (EPSG:4326)
 name: id # Name of the node, displayed on the map and in solutions
 zone: Zone # Optimization zone, a hard boundary for trips (2 nodes in different zones won't ever be on the same trip, or even considered as part of the same optimization)
+buckets: Demand # Load of a node, a configurable value can fill in unknown loads in config.json. A value is considered unknown if set to 0 because a location with 0 demand should not exist anyway.
 
 #Optional
-buckets: Demand # Load of a node, a configurable value can fill in unknown loads in config.json
 closed: Closed # 0 or 1, depending on whether the node should be considered 
 additional_info: Name # To be displayed on a map
 time_windows: Time Windows # Indicates a range of time where the node can be visited, e.g. 5:30AM-6:05PM
