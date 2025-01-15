@@ -23,8 +23,6 @@ session_id = ''
 
 host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 
-recalculate_map = True
-
 def download_solution(solution_path, map_path):
     timestamp = datetime.datetime.now().strftime(format='%Y%m%d-%H-%M-%S')
     response = requests.get(f'{host_url}/download/?session_id={session_id}')
@@ -47,6 +45,17 @@ def download_solution(solution_path, map_path):
 
 def request_solution():
     response = requests.get(f'{host_url}/get_solution/?session_id={session_id}')
+    message = response.json()['message']
+    if message != "Success":
+        st.error(message.replace('\n', '  \n'))
+        st.error("""Any outputs below are not valid, please inspect the error above.  \n
+                 Guidelines: 
+                 1) Typically an IndexError indicates that a location mentioned in config.json doesn't exist properly in the data, it might be a typo.
+                 2) If it indicates that no solution was found, config.json may be changed to include more time or vehicles
+                 3) If it's a KeyError followed by a vehicle name, make sure config.json has vehicles matching the list of available vehicles at the top of the page.""")
+
+    #with st.expander('See optimization logs'):
+
     solution, solutionmap, solution_zip = download_solution(solution_path='solution.txt', map_path='/maps/route_map.html')
 
     return solution, solutionmap, solution_zip
@@ -201,7 +210,7 @@ def main():
             extra_coordinates = extra[['GPS (Latitude)','GPS (Longitude)']]
 
             all_coords = np.concatenate([customers[lat_lon_columns].values, extra_coordinates.values])
-            area_buffer = 0.07 # adding a buffer for the road network, 0.1 is about 11 km long at the equator
+            area_buffer = 0.01 # adding a buffer for the road network, 0.1 is about 11 km long at the equator
             minima = all_coords.min(axis=0)-area_buffer
             maxima = all_coords.max(axis=0)+area_buffer
             bounding_box = [minima[1], minima[0], maxima[1], maxima[0]] 

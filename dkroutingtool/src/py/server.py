@@ -1,3 +1,6 @@
+import traceback
+import io
+from contextlib import redirect_stderr
 import main_application
 import fastapi
 import uvicorn
@@ -63,9 +66,16 @@ def get_solution(session_id: str=''):
     main_application.args.cloud = False
     main_application.args.manual_mapping_mode = False
     main_application.args.manual_input_path = None
+    #temp_output = io.StringIO()
+    try:
+        main_application.main(user_directory=f'data{session_id}')
+        stateful_info[f'{session_id}_last_output'] = 'Success'
+    except Exception:
+        error = traceback.format_exc()
+        print(error)
+        stateful_info[f'{session_id}_last_output'] = error
 
-    main_application.main(user_directory=f'data{session_id}')
-    return {'message': 'Done'}
+    return {'message': f"{stateful_info[f'{session_id}_last_output']}"}
 
 @app.get('/get_map_info')
 def get_map_info():
