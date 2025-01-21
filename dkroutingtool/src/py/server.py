@@ -1,3 +1,6 @@
+import traceback
+import io
+from contextlib import redirect_stderr
 import main_application
 import fastapi
 import uvicorn
@@ -11,6 +14,8 @@ import os
 import subprocess
 
 app = fastapi.FastAPI()
+
+stateful_info = dict()
 
 def find_most_recent_output(session_id):
     most_recent = sorted(glob.glob(f'/WORKING_DATA_DIR/data{session_id}/output_data/*'))[-1]
@@ -61,10 +66,20 @@ def get_solution(session_id: str=''):
     main_application.args.cloud = False
     main_application.args.manual_mapping_mode = False
     main_application.args.manual_input_path = None
+    #temp_output = io.StringIO()
+    try:
+        main_application.main(user_directory=f'data{session_id}')
+        stateful_info[f'{session_id}_last_output'] = 'Success'
+    except Exception:
+        error = traceback.format_exc()
+        print(error)
+        stateful_info[f'{session_id}_last_output'] = error
 
-    main_application.main(user_directory=f'data{session_id}')
-    return {'message': 'Done'}
+    return {'message': f"{stateful_info[f'{session_id}_last_output']}"}
 
+@app.get('/get_map_info')
+def get_map_info():
+    return {'message': stateful_info.get('bounding_box')}
 
 @app.post('/adjust_solution')
 def get_solution(files: List[UploadFile] = File(...), session_id: str=''):
@@ -96,7 +111,9 @@ def download(session_id: str=''):
 
 
 @app.get('/request_map/')
-def request_map(minlat, minlon, maxlat, maxlon):    
+def request_map(minlat, minlon, maxlat, maxlon):  
+    stateful_info['bounding_box'] = [minlat, minlon, maxlat, maxlon]
+
     request_template = f'''
     [out:xml]
     [bbox:{minlon},{minlat}, {maxlon}, {maxlat}];
