@@ -7,7 +7,8 @@ The only vehicle profiles available are the ones defined in the directory `veh_p
 
 Refer to the Makefile for common use cases, e.g.
 `make demo`
-then go to http://localhost:8501/ to use the web-based interface
+then go to http://localhost:8501/ to use the web-based interface. Instead of make, you can also execute 
+`docker compose up`
 
 ## User Manual
 This is the draft for a user manual, it has information about configuration options and a few things that are more related to setting up your workflow with the tool.
