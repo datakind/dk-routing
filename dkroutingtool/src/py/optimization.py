@@ -605,7 +605,8 @@ def create_vehicle(node_data, config):
     return vehicles
 
 
-def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max_solver_time_min=2, soft_upper_bound_value=0, soft_upper_bound_penalty=0, span_cost_coefficient=0, fast_run=False):
+def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max_solver_time_min=2, soft_upper_bound_value=0, soft_upper_bound_penalty=0, span_cost_coefficient=0, clustering_radius=None, fast_run=False):
+    # Ignores clustering_radius locally, the config argument is taken in globally earlier in the flow
     manager = pywrapcp.RoutingIndexManager(int(data.num_locations),
                                         int(data.num_vehicles), 
                                        [int(data.names_to_nodes[i.start]) for i in vehicles],
@@ -1302,6 +1303,11 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
     global_solver_options = config.get('global_solver_options')
     prev_route_dict = None
     prev_vehicles = None
+
+    if 'clustering_radius' in global_solver_options:
+        global agg_threshold_radius
+        agg_threshold_radius = global_solver_options.get('clustering_radius')
+
     prev_keys = set([])
     zone_route_map = {}
     #for each zone configuration

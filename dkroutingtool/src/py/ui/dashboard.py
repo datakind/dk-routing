@@ -210,7 +210,7 @@ def main():
             extra_coordinates = extra[['GPS (Latitude)','GPS (Longitude)']]
 
             all_coords = np.concatenate([customers[lat_lon_columns].values, extra_coordinates.values])
-            area_buffer = 0.01 # adding a buffer for the road network, 0.1 is about 11 km long at the equator
+            area_buffer = 0.06 # adding a buffer for the road network, 0.1 is about 11 km long at the equator
             minima = all_coords.min(axis=0)-area_buffer
             maxima = all_coords.max(axis=0)+area_buffer
             bounding_box = [minima[1], minima[0], maxima[1], maxima[0]] 
