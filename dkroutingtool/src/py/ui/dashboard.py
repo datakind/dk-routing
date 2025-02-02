@@ -192,6 +192,8 @@ def main():
                     if column == 'buckets':
                         added = ' If the number of containers is unknown for a particular customer, please enter 0 as the value and the software will assume a default value.'
                     st.error(f'{to_check} has {unknown_values} invalid value(s) (blank, missing, etc.), please verify customer_data.xlsx before proceeding.{added}')
+                    if unknown_values < 6:
+                        st.write(customers[customers[to_check].isna()])
             else:
                 st.error(f'{to_check} is missing in customer_data.xlsx and it is a mandatory column, please add it before proceeding or specify the right column in custom_header.yaml.')
         for column in optional_columns:
@@ -211,8 +213,8 @@ def main():
 
             all_coords = np.concatenate([customers[lat_lon_columns].values, extra_coordinates.values])
             area_buffer = 0.06 # adding a buffer for the road network, 0.1 is about 11 km long at the equator
-            minima = all_coords.min(axis=0)-area_buffer
-            maxima = all_coords.max(axis=0)+area_buffer
+            minima = np.nanmin(all_coords, axis=0)-area_buffer
+            maxima = np.nanmax(all_coords, axis=0)+area_buffer
             bounding_box = [minima[1], minima[0], maxima[1], maxima[0]] 
             area = abs(bounding_box[2] - bounding_box[0]) * abs(bounding_box[3] - bounding_box[1]) 
             

@@ -193,7 +193,13 @@ def folium_map(routes, nodes, manual_editing_mode,
                            map_html_output=buff.getvalue())
 
 def create_fol_cust_markers(border_color, marker_text, loc, pop_up):
-    ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, icon_shape='marker')
+    # relanse and koupe conditions shown as examples of data changing the format of the markers if present in additional_info 
+    if 'Relanse' in str(pop_up):
+        ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, background_color="#7DCEA0", icon_shape='marker')
+    elif 'Koupe' in str(pop_up):
+        ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, background_color='#F1948A', icon_shape='marker')
+    else:
+        ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, icon_shape='marker')
     
     pop_up_html = ""
     pop_up_html += f'Trip index: {marker_text} <br>'
