@@ -1,1 +1,1 @@
-jupyter notebook --ip 0.0.0.0 --port 8080  --no-browser --allow-root
+pip install notebook==6 && pip install markupsafe==2.0.1 && pip install traitlets==5.1.1 && jupyter notebook --ip 0.0.0.0 --port 8080  --no-browser --allow-root
