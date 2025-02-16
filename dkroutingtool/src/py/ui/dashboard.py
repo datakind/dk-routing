@@ -88,8 +88,8 @@ def adjust(adjusted_file):
     return message, solution, solutionmap, solution_zip
 
 def upload_data(files_from_streamlit):
-    global session_id
-    session_id = get_script_run_ctx().session_id # Only identifies a session if configuration files are uploaded
+    #global session_id
+    #session_id = get_script_run_ctx().session_id # Only identifies a session if configuration files are uploaded
 
     files = [('files', file) for file in files_from_streamlit]
 
@@ -136,6 +136,9 @@ def main():
                     with st.spinner('Downloading the road network. This may take a few minutes, please wait...'):
                         request_map(bounding_box)
                     st.write('Road network ready for routing')
+
+    global session_id
+    session_id = st.text_input('Session name', f'{get_script_run_ctx().session_id}')
 
     uploaded_files = st.file_uploader('Upload all required files (config.json, customer_data.xlsx, extra_points.csv, custom_header.yaml). You can refer to the [files here as an example](https://github.com/datakind/dk-routing/tree/main/dkroutingtool/local_data)', accept_multiple_files=True)
     mandatory_files = ['config.json', 'custom_header.yaml', 'customer_data.xlsx', 'extra_points.csv']
@@ -245,9 +248,18 @@ def main():
                     request_map(bounding_box)
                 #st.write(':heavy_check_mark: Road network ready for routing')
                 st.rerun() 
-        st.write('Calculating a solution will take up to twice the amount of time specified by the config file')
+        st.write('Calculating a solution will take up to the amount of time specified by the config file per region')
         solution_requested = st.button('Click here to calculate routes')
-    
+
+    else:
+        old_solution_requested = st.button('If your session was interrupted, click here to retrieve a previous solution for the session name provided above')
+        if old_solution_requested:
+            solution, solutionmap, solution_zip = download_solution(solution_path='solution.txt', map_path='/maps/route_map.html')
+            b64 = base64.b64encode(solution_zip).decode()
+            st.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="solution.zip">Download solution files</a>', unsafe_allow_html=True)
+            components.html(solutionmap, height = 800)
+            st.write(solution)
+
     if solution_requested:
         with st.spinner('Computing routes, please wait...'):
             solution, solutionmap, solution_zip = request_solution()
@@ -265,6 +277,14 @@ def main():
         with st.spinner('Adjusting routes, please wait...'):
             response, solution, solutionmap, solution_zip = adjust(uploaded_files)
         st.write(response)
+        b64 = base64.b64encode(solution_zip).decode()
+        st.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="solution.zip">Download solution files</a>', unsafe_allow_html=True)
+        components.html(solutionmap, height = 800)
+        st.write(solution)
+    
+    old_solution_requested_adjusted = st.button('If your session was interrupted and you were waiting for an adjusted solution, click here to retrieve a previous solution for the session name provided above')
+    if old_solution_requested_adjusted:
+        solution, solutionmap, solution_zip = download_solution(solution_path='manual_edits/manual_solution.txt', map_path='maps/trip_data.html')
         b64 = base64.b64encode(solution_zip).decode()
         st.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="solution.zip">Download solution files</a>', unsafe_allow_html=True)
         components.html(solutionmap, height = 800)
