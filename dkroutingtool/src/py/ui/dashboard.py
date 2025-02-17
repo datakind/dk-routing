@@ -23,6 +23,98 @@ session_id = ''
 
 host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 
+selected_prefix = "Selected, "
+
+def allow_change():
+    selected_prefix = "Selected, "
+
+    def add_markers():
+        for i,p in st.session_state['points'].iterrows():
+            marker = folium.Marker([p['x'], p['y']], 
+                                tooltip=f"Name:{p['name']}, Route: {p['partition']}, Index: {i}",
+                                icon=folium.Icon(color=colorlist[p['partition']], icon=""))
+            fg.add_child(marker)
+
+        for selected in st.session_state['selected']:
+            index = int(selected.split('Index:')[-1].strip())
+            selected = st.session_state['points'].iloc[index]
+            marker = folium.Marker([selected['x'], selected['y']], 
+                                tooltip=f"{selected_prefix}Name:{selected['name']}, Route: {selected['partition']}, Index: {index}",
+                                icon=folium.Icon(color='gray', icon='star'))
+            fg.add_child(marker)
+
+    def update_map():
+        just_clicked = map_output['last_object_clicked_tooltip']
+        if just_clicked is not None and st.session_state['last_selected'] != just_clicked:
+            if not just_clicked.startswith('Selected'):
+                st.session_state['selected'].add(just_clicked)
+                st.session_state['last_selected'] = just_clicked
+                st.rerun()
+            else:
+                original_clicked = just_clicked[len(selected_prefix):]
+                if original_clicked in st.session_state['selected']:
+                    st.session_state['selected'].remove(original_clicked)
+                    st.rerun()
+
+    def update_data():
+        for point in st.session_state['selected']:
+            index = int(point.split('Index:')[-1].strip())
+            st.session_state['points'].loc[index, 'partition'] = route_change
+        st.session_state['selected'] = set()
+        st.session_state['last_selected'] = None
+        st.session_state['reset_number'] += 1
+        st.rerun()
+
+    points = pd.DataFrame()
+    points['x'] = [-11.98, -11.985, -11.982, -11.989]
+    points['y'] = [-77.018, -77.017, -77.017, -77.015]
+    points['partition'] = [1, 1, 2, 0]
+    points['name'] = ['a', 'b', 'c', 'd']
+
+    colorlist = ['green', 'blue',  'orange', 'purple', 'pink', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'cadetblue', 'darkgreen', 'black', 'beige', 'white', 'lightgray', 'gray']
+    partitions = set(points['partition'])
+
+    center = [-11.9858, -77.019]
+    zoom = 15
+
+    if 'points' not in st.session_state:
+        st.session_state['points'] = points.copy()
+    if 'reset_number' not in st.session_state:
+        st.session_state['reset_number'] = 0
+    if "center" not in st.session_state:
+        st.session_state["center"] = [-11.9858, -77.019]
+    if "zoom" not in st.session_state:
+        st.session_state["zoom"] = 15
+    if 'last_selected' not in st.session_state:
+        st.session_state['last_selected'] = None
+    if 'selected' not in st.session_state:
+        st.session_state['selected'] = set()
+
+    key = f"key_{st.session_state['reset_number']}"
+
+    m = folium.Map(location=center, zoom_start=zoom)
+
+    fg = folium.FeatureGroup(name="Markers")
+
+    add_markers()
+
+    map_output = st_folium(
+        m,
+        center=st.session_state["center"],
+        zoom=st.session_state["zoom"],
+        key=key,
+        feature_group_to_add=fg,
+        height=500,
+        width=700,
+    )
+
+    update_map()
+
+    route_change = st.selectbox(label="Choose a route to assign the selected points", options=partitions)
+    assigning = st.button('Click to assign according to your selection')
+    if assigning:
+        update_data()
+
 def download_solution(solution_path, map_path):
     timestamp = datetime.datetime.now().strftime(format='%Y%m%d-%H-%M-%S')
     response = requests.get(f'{host_url}/download/?session_id={session_id}')
@@ -248,6 +340,11 @@ def main():
                     request_map(bounding_box)
                 #st.write(':heavy_check_mark: Road network ready for routing')
                 st.rerun() 
+        
+        if False:
+            st.write('This is the presolved set of routes to which points are assigned.')
+            allow_change()
+        
         st.write('Calculating a solution will take up to the amount of time specified by the config file per region')
         solution_requested = st.button('Click here to calculate routes')
 
