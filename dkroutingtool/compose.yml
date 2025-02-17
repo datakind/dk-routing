@@ -4,6 +4,7 @@ services:
     command: /opt/conda/bin/python src/py/server.py
     ports:
       - "5001:5001"
+      - "8080:8080"
   frontend:
     environment:
       SERVER_HOST: backend
