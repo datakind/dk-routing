@@ -14,8 +14,8 @@ import osrmbindings
 #import osrm_text_instructions
 import os
 
-colorList = sorted(["red","blue","green","orange","purple","yellow","black","pink"])
-
+colorList = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'beige', 'white', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'gray']
+    
 def folium_map(routes, nodes, manual_editing_mode,
                nodes_for_mapping=None, route_names=None,
                filenamePreString=None, filenamePostString=None,

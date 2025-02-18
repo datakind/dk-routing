@@ -7,6 +7,8 @@ import zipfile
 import streamlit.components.v1 as components
 from folium.plugins import Draw
 from streamlit_folium import st_folium
+from folium.plugins import BeautifyIcon
+
 import folium
 import os
 from streamlit.runtime import get_instance
@@ -16,6 +18,9 @@ import numpy as np
 import pandas as pd
 import yaml
 
+# color list is the same as the backend
+colorlist = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'beige', 'white', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'gray']
+
 st.set_page_config(page_title='Container-based Action Routing Tool (CART)', layout="wide")
 
 runtime = get_instance()
@@ -23,16 +28,199 @@ session_id = ''
 
 host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 
-selected_prefix = "Selected, "
+@st.cache_data
+def read_data(edit_path, customer_path, header_path):
+    customers = pd.read_excel(customer_path)
+    
+    points = pd.read_excel(edit_path)
+    points['node_num'] = points['node_num'].astype(str)
+    with open(header_path, 'rb') as path:
+        headers = yaml.load(path, Loader=yaml.CLoader)
+    new_headers = dict()
+    for key, value in headers.items():
+        new_headers[value] = key
+    customers.columns = [new_headers.get(c,c) for c in customers.columns]
+    customers['name'] = customers['name'].astype('str')
+    customers = customers[['lat_orig','long_orig', 'columns_to_display', 'name', 'zone']]
+    return points, customers, headers
 
 def allow_change():
     selected_prefix = "Selected, "
 
     def add_markers():
+        for route_key, frame in st.session_state['points'].groupby('route'):
+            route_counter = 0
+            for i,p in frame.iterrows():
+                if not pd.isna(p['lat_orig']):
+                    if "Relanse" in p['columns_to_display']:
+                        icon = folium.plugins.BeautifyIcon(border_color=route_key.split('-')[0], 
+                            text_color='black', 
+                            background_color='#F1948A',
+                            number=route_counter,
+                            icon_shape='marker')
+
+                    if "Koupe" in p['columns_to_display']:
+                        icon = folium.plugins.BeautifyIcon(border_color=route_key.split('-')[0], 
+                            text_color='black', 
+                            background_color="#7DCEA0",
+                            number=route_counter,
+                            icon_shape='marker')
+                    else:
+                        icon = folium.plugins.BeautifyIcon(border_color=route_key.split('-')[0], 
+                            text_color='black', 
+                            number=route_counter,
+                            icon_shape='marker')
+                    marker = folium.Marker([p['lat_orig'], p['long_orig']], 
+                                        tooltip=f"Name:{p['name']}, Route: {route_key}, Info: {p['columns_to_display']} {p['additional_info']}, Index: {i}",
+                                        icon=icon)
+                    fg.add_child(marker)
+                    route_counter += 1
+                else:
+                    continue
+                
+        for selected_index, selected in enumerate(st.session_state['selected']):
+            index = int(selected.split('Index:')[-1].strip())
+            selected = st.session_state['points'].loc[index]
+            
+            icon = folium.plugins.BeautifyIcon(border_color='black', 
+                                        text_color='white',
+                                        background_color='black', 
+                                        number=selected_index,
+                                        icon_shape='marker')
+            
+            marker = folium.Marker([selected['lat_orig'], selected['long_orig']], 
+                                tooltip=f"{selected_prefix}Name:{selected['name']}, Route: {selected['route']}, Index: {index}",
+                                icon=icon)
+            fg.add_child(marker)
+
+    def update_map():
+        just_clicked = map_output['last_object_clicked_tooltip']
+        if just_clicked is not None and st.session_state['last_selected'] != just_clicked:
+            if not just_clicked.startswith('Selected'):
+                st.session_state['selected'].append(just_clicked)
+                st.session_state['last_selected'] = just_clicked
+                st.rerun()
+            else:
+                original_clicked = just_clicked[len(selected_prefix):]
+                if original_clicked in st.session_state['selected']:
+                    st.session_state['selected'].remove(original_clicked)
+                    st.rerun()
+    
+    def clear_selection():
+        st.session_state['selected'] = []
+        st.session_state['last_selected'] = None
+        st.session_state['reset_number'] += 1
+        st.rerun()
+    
+    def update_data(route_change):
+        
+        # Just changing their route id
+        records_to_move = []
+        for point in st.session_state['selected']:
+            index = int(point.split('Index:')[-1].strip())
+            records_to_move.append(index)
+            st.session_state['points'].loc[index, 'route'] = route_change
+        
+        original = st.session_state['points'].copy()
+        
+        # Reordering
+        if len(st.session_state['selected']) == 1:
+            single_index = records_to_move[0]
+            record_to_move = original.loc[single_index:single_index+0]
+
+            first_position = np.where(original['route'] == route_change)[0][0]
+            original = original.drop(index=single_index)
+            firsthalf = original.loc[0:first_position]
+            secondhalf = original.loc[first_position+1:]
+
+            newpoints = pd.concat([firsthalf, record_to_move, secondhalf]).reset_index(drop=True)
+            st.session_state['points'] = newpoints.copy()            
+
+        else:
+            consecutive_records = original.loc[records_to_move]
+            first_position = records_to_move[0]
+            
+            original = original.drop(index=records_to_move)
+            
+            firsthalf = original.loc[0:first_position-1]
+            secondhalf = original.loc[first_position+1:]
+
+            newpoints = pd.concat([firsthalf, consecutive_records, secondhalf]).reset_index(drop=True)
+            st.session_state['points'] = newpoints.copy()            
+
+        clear_selection()
+
+    original_points, customers, headers = read_data('manual_routes_edits.xlsx', 'customer_data.xlsx', 'custom_header.yaml')
+    points = pd.merge(original_points, customers, left_on='node_name', right_on='name', how='left')
+    lat = customers['lat_orig'].mean()
+    lon = customers['long_orig'].mean()
+    st.write(points)
+    partitions = set(points['route'])
+
+    center = [lat, lon]
+    zoom = 14
+
+    if 'points' not in st.session_state:
+        st.session_state['points'] = points.copy()
+    if 'reset_number' not in st.session_state:
+        st.session_state['reset_number'] = 0
+    if "center" not in st.session_state:
+        st.session_state["center"] = [lat, lon]
+    if "zoom" not in st.session_state:
+        st.session_state["zoom"] = 15
+    if 'last_selected' not in st.session_state:
+        st.session_state['last_selected'] = None
+    if 'selected' not in st.session_state:
+        st.session_state['selected'] = []
+
+    key = f"key_{st.session_state['reset_number']}"
+
+    m = folium.Map(location=center, zoom_start=zoom)
+
+    fg = folium.FeatureGroup(name="Markers")
+
+    add_markers()
+
+    map_output = st_folium(
+        m,
+        center=st.session_state["center"],
+        zoom=st.session_state["zoom"],
+        key=key,
+        feature_group_to_add=fg,
+        height=800,
+        width=1100,
+    )
+
+    update_map()
+
+    route_change = st.selectbox(label="Choose a route to assign the selected points", options=partitions)
+    assigning = st.button('Click to assign according to your selection')
+    if assigning:
+        update_data(route_change)
+    clearing = st.button('Clear current selection')
+    if clearing:
+        clear_selection()
+    exporting = st.button('Export')
+    if exporting:
+        st.write(st.session_state['points'])
+        zone_name = 'West'
+        st.session_state['points'][original_points.columns].to_excel('whatnow.xlsx', index=False, sheet_name=str(zone_name))
+
+
+def allow_change_presolve():
+    """Ignore for now, the case for adjustments post-solve is more important"""
+    selected_prefix = "Selected, "
+
+    def add_markers():
         for i,p in st.session_state['points'].iterrows():
+            
+            icon = folium.plugins.BeautifyIcon(border_color=colorlist[p['partition']], 
+                                        text_color='black', 
+                                        number=i,
+                                        icon_shape='marker')
             marker = folium.Marker([p['x'], p['y']], 
                                 tooltip=f"Name:{p['name']}, Route: {p['partition']}, Index: {i}",
-                                icon=folium.Icon(color=colorlist[p['partition']], icon=""))
+                                icon=icon)
             fg.add_child(marker)
 
         for selected in st.session_state['selected']:
@@ -71,7 +259,6 @@ def allow_change():
     points['partition'] = [1, 1, 2, 0]
     points['name'] = ['a', 'b', 'c', 'd']
 
-    colorlist = ['green', 'blue',  'orange', 'purple', 'pink', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'cadetblue', 'darkgreen', 'black', 'beige', 'white', 'lightgray', 'gray']
     partitions = set(points['partition'])
 
     center = [-11.9858, -77.019]
@@ -204,6 +391,9 @@ def upload_data(files_from_streamlit):
 
 def main():
     st.header('Container-based Action Routing Tool (CART)')
+
+    #allow_change()
+    #return
 
     vehicles_text = st.empty()
     vehicles_text.text('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
