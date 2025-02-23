@@ -594,10 +594,11 @@ def create_vehicle(node_data, config):
         total_demand = sum([i for i in node_data.get_attr('buckets')[_boolean_selected] if i > 0])
         # Works for now but if vehicles of diff capacity in same zone we need to change this to get the total capacity
         #vehicle_number = int((total_demand / config['trips_vehicle_profile'][0][1]) * 2) # 2 provides good surplus for balancing
-        vehicle_number = math.ceil((total_demand / config['trips_vehicle_profile'][0][1]) * vehicle_surplus_factor) # 2 provides good surplus for balancing
+        vehicle_number = math.ceil((total_demand / config['trips_vehicle_profile'][0][1]) * vehicle_surplus_factor)+1 # 2 provides good surplus for balancing
+        
         # Provide at least 4 vehicles for flexibility with balancing - if dealing with a low demand zone
         vehicle_number = max([4, vehicle_number])
-
+        
         vehicles = []
         for vec in range(num_vehicle_type): # TODO - if there are multiple vehicle types then we create a lot of extra vehicles
             _time_distance = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='time')[_boolean_selected][:,_boolean_selected]   
@@ -614,7 +615,7 @@ def create_vehicle(node_data, config):
     return vehicles
 
 
-def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max_solver_time_min=2, soft_upper_bound_value=0, soft_upper_bound_penalty=0, span_cost_coefficient=0, clustering_radius=None, fast_run=False, presolved=False):
+def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max_solver_time_min=2, soft_upper_bound_value=0, soft_upper_bound_penalty=0, span_cost_coefficient=0, clustering_radius=None, fast_run=False, presolved=False, presolved_from_past=False):
     # Ignores clustering_radius locally, the config argument is taken in globally earlier in the flow
     manager = pywrapcp.RoutingIndexManager(int(data.num_locations),
                                         int(data.num_vehicles), 
@@ -804,11 +805,14 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
     if presolved:
         vehicle_counter = 0
         for key, partition in data.dfverbose.groupby(['partition']):
-            print('Presolved for', key)
             for node in partition.index:
                 routing.SetAllowedVehiclesForIndex([vehicle_counter], manager.NodeToIndex(node))
             vehicle_counter += 1
-
+        print('Number of vehicles', len(vehicles))
+        for index, row in data.dfverbose.iterrows():
+            if pd.isna(row['partition']):
+                routing.SetAllowedVehiclesForIndex(list(range(0,len(vehicles))), manager.NodeToIndex(index))
+                                                   
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.time_limit.seconds = 60 * max_solver_time_min
     search_parameters.first_solution_strategy = (
@@ -1684,7 +1688,7 @@ def presolve(node_data, config):
     for this_config in config['zone_configs']:
         only_the_zone = {'zone': this_config['optimized_region']}
         node_data_filtered = node_data.filter_nodedata(only_the_zone, filter_name_str='multiple_sample')
-        gps = node_data_filtered.df_gps_verbose.copy()
+        gps = node_data_filtered.df_gps_verbose
         total_demand = gps['buckets'].sum()
 
         capacity = this_config['trips_vehicle_profile'][0][1] # only works with enable_unload == False because of this line
@@ -1703,6 +1707,51 @@ def presolve(node_data, config):
     
     return node_data
 
+def presolve_with_prior(node_data, config):
+    """Creates partitions according to vehicle capacity and total demand, 
+    speeding up routing and enabling more intuitive geographical clustering of stops.
+    Only works if only one vehicle type is used per zone."""
+
+    adjusts = node_data.past_adjustments.copy()
+    
+    for this_config in config['zone_configs']:
+        only_the_zone = {'zone': this_config['optimized_region']}
+        capacity = this_config['trips_vehicle_profile'][0][1] # only works with enable_unload == False because of this line
+                                    
+        node_data_filtered = node_data.filter_nodedata(only_the_zone, filter_name_str='multiple_sample')
+        gps = node_data_filtered.df_gps_verbose
+        rowmapping = dict()
+        for index, row in gps.iterrows():
+            rowmapping[row['name']] = index
+                            
+        all_additional = set(gps['name'])
+        partitions = []
+        if len(set(adjusts['node_name']).intersection(all_additional)) > 0:
+            node_key = 'node_name'
+        else:
+            node_key = 'additional_info'
+
+        for route_key, frame in adjusts.groupby('route'):
+            partitions.append([])
+            current_capacity = 0
+            for index, row in frame.iterrows():
+                if not pd.isna(row[node_key]):
+                    if row[node_key] in all_additional:
+                          demand = gps.loc[rowmapping[row[node_key]], 'buckets']
+                          if current_capacity + demand <= capacity:
+                              partitions[-1].append(row[node_key])        
+                              current_capacity += demand
+                          else:
+                              break
+                                
+        for i, partition in enumerate(partitions):
+            for p in partition:
+                node_data.df_gps_verbose.loc[rowmapping[p],'partition'] = f'{this_config["optimized_region"]}_{i}'
+    
+    partitioned_demand = node_data.df_gps_verbose.groupby('partition')['buckets'].sum()
+    print(partitioned_demand)
+    print(gps['buckets'].sum(), partitioned_demand.sum())
+    return node_data
 
 
 def run_optimization(node_data, config):
@@ -1710,10 +1759,16 @@ def run_optimization(node_data, config):
     starting_time = time.time()
 
     presolved = config['global_solver_options'].get('presolved',False)
+    presolved_from_past = config['global_solver_options'].get('presolved_from_past',False)
+
     if presolved:
         print("Presolving")
-        node_data = presolve(node_data, config)
+        if presolved_from_past:
+            node_data = presolve_with_prior(node_data, config)
+        else:
+            node_data = presolve(node_data, config)
     # Solve the routing problem.
+    
     solution = solve(node_data, config)
 
     # Finalize the optimization solution.

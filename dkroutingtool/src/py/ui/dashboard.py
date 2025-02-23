@@ -32,7 +32,12 @@ host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 def read_data(edit_path, customer_path, header_path):
     customers = pd.read_excel(customer_path)
     
-    points = pd.read_excel(edit_path)
+    points = pd.read_excel(edit_path, sheet_name=None)
+    if len(points.keys()) > 1:
+        st.error('This does not support multiple configurations yet, please make sure you only have one item in "zone_configs" in config.json.')
+    sheet_name = list(points.keys())[0]
+    points = points[sheet_name]
+    
     points['node_num'] = points['node_num'].astype(str)
     with open(header_path, 'rb') as path:
         headers = yaml.load(path, Loader=yaml.CLoader)
@@ -42,7 +47,7 @@ def read_data(edit_path, customer_path, header_path):
     customers.columns = [new_headers.get(c,c) for c in customers.columns]
     customers['name'] = customers['name'].astype('str')
     customers = customers[['lat_orig','long_orig', 'columns_to_display', 'name', 'zone']]
-    return points, customers, headers
+    return points, customers, headers, sheet_name
 
 def allow_change():
     selected_prefix = "Selected, "
@@ -50,7 +55,7 @@ def allow_change():
     def add_markers():
         for route_key, frame in st.session_state['points'].groupby('route'):
             route_counter = 0
-            for i,p in frame.iterrows():
+            for i,p in frame.iterrows(): # crucial information here is that i is the index label
                 if not pd.isna(p['lat_orig']):
                     if "Relanse" in p['columns_to_display']:
                         icon = folium.plugins.BeautifyIcon(border_color=route_key.split('-')[0], 
@@ -150,11 +155,10 @@ def allow_change():
 
         clear_selection()
 
-    original_points, customers, headers = read_data('manual_routes_edits.xlsx', 'customer_data.xlsx', 'custom_header.yaml')
+    original_points, customers, headers, sheet_name = read_data('manual_routes_edits.xlsx', 'customer_data.xlsx', 'custom_header.yaml')
     points = pd.merge(original_points, customers, left_on='node_name', right_on='name', how='left')
     lat = customers['lat_orig'].mean()
     lon = customers['long_orig'].mean()
-    st.write(points)
     partitions = set(points['route'])
 
     center = [lat, lon]
@@ -197,14 +201,15 @@ def allow_change():
     assigning = st.button('Click to assign according to your selection')
     if assigning:
         update_data(route_change)
+    
     clearing = st.button('Clear current selection')
     if clearing:
         clear_selection()
+    
     exporting = st.button('Export')
     if exporting:
         st.write(st.session_state['points'])
-        zone_name = 'West'
-        st.session_state['points'][original_points.columns].to_excel('whatnow.xlsx', index=False, sheet_name=str(zone_name))
+        st.session_state['points'][original_points.columns].to_excel('adjusted.xlsx', index=False, sheet_name=sheet_name)
 
 
 def allow_change_presolve():

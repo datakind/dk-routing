@@ -99,6 +99,13 @@ def get_solution(files: List[UploadFile] = File(...), session_id: str=''):
     main_application.main(user_directory=f'data{session_id}')
     return {'message': 'Manual solution updated, please download again'}
 
+@app.post('/save_adjustments')
+def save_adjustments():
+    return {'message': 'Adjustments saved'}
+
+@app.get('/get_adjustments')
+def get_adjustments(session_id: str=''):
+    return {'message': stateful_info.get(f'{session_id}_adjustments')}
 
 @app.get('/download')
 def download(session_id: str=''):

@@ -15,7 +15,64 @@ import osrmbindings
 import os
 
 colorList = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'beige', 'white', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'gray']
-    
+"""
+colors_hex = [
+    "#FF0000",  # Pure Red
+    "#00FF00",  # Pure Green
+    "#0000FF",  # Pure Blue
+    "#FFFF00",  # Pure Yellow
+    "#FF00FF",  # Pure Magenta
+    "#00FFFF",  # Pure Cyan
+    "#FF8000",  # Orange
+    "#800080",  # Purple
+    "#008000",  # Dark Green
+    "#800000",  # Maroon
+    "#008080",  # Teal
+    "#808000",  # Olive
+    "#C0C0C0",  # Silver
+    "#808080",  # Gray
+    "#000000",  # Black
+    "#FFFFFF",  # White
+    "#00FF80",  # Spring Green
+    "#FF0080",  # Rose
+    "#80FF00",  # Lime Green
+    "#8000FF",  # Violet
+    "#0080FF",  # Dodger Blue
+    "#FF80FF",  # Pink
+    "#80FFFF",  # Light Cyan
+    "#FFBF00",  # Amber
+    "#000080"   # Navy
+]
+
+color_names = [
+    "Red",
+    "Green",
+    "Blue",
+    "Yellow",
+    "Magenta",
+    "Cyan",
+    "Orange",
+    "Purple",
+    "DarkGreen",
+    "Maroon",
+    "Teal",
+    "Olive",
+    "Silver",
+    "Gray",
+    "Black",
+    "White",
+    "SpringGreen",
+    "Rose",
+    "LimeGreen",
+    "Violet",
+    "DodgerBlue",
+    "Pink",
+    "LightCyan",
+    "Amber",
+    "Navy"
+]
+"""
+
 def folium_map(routes, nodes, manual_editing_mode,
                nodes_for_mapping=None, route_names=None,
                filenamePreString=None, filenamePostString=None,
