@@ -19,6 +19,8 @@ import numpy as np
 import pandas as pd
 import yaml
 
+#TODO Need to make sure you can retrieve original solution state even if manual adjustments were requested? 
+
 # color list is the same as the backend
 colorlist = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'beige', 'white', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'gray']
 
@@ -52,29 +54,32 @@ def request_data_for_adjustments():
     return customers, headers, sheet_name, points
 
 def read_data():
-    if 'reread_data' in st.session_state and st.session_state['reread_data']:
-        customers, headers, sheet_name, points = request_data_for_adjustments()
-        st.session_state['read_customers'] = customers
-        st.session_state['read_points'] = points
-        st.session_state['read_headers'] = headers
-        st.session_state['sheet_name'] = sheet_name
-        st.session_state['reread_data'] = False
+    #customers, headers, sheet_name, points = request_data_for_adjustments()
+    #return customers, headers, sheet_name, points
+    if True:
+        if 'reread_data' in st.session_state and st.session_state['reread_data']:
+            customers, headers, sheet_name, points = request_data_for_adjustments()
+            st.session_state['read_customers'] = customers
+            st.session_state['read_points'] = points
+            st.session_state['read_headers'] = headers
+            st.session_state['sheet_name'] = sheet_name
+            st.session_state['reread_data'] = False
 
-    elif 'read_customers' in st.session_state:
-        customers = st.session_state['read_customers']
-        headers = st.session_state['read_headers']
-        sheet_name = st.session_state['sheet_name']
-        points = st.session_state['read_points']
-    
-    else:
-        customers, headers, sheet_name, points = request_data_for_adjustments()
-        st.session_state['read_customers'] = customers
-        st.session_state['read_points'] = points
-        st.session_state['read_headers'] = headers
-        st.session_state['sheet_name'] = sheet_name
-        st.session_state['reread_data'] = False
+        elif 'read_customers' in st.session_state:
+            customers = st.session_state['read_customers']
+            headers = st.session_state['read_headers']
+            sheet_name = st.session_state['sheet_name']
+            points = st.session_state['read_points']
+        
+        else:
+            customers, headers, sheet_name, points = request_data_for_adjustments()
+            st.session_state['read_customers'] = customers
+            st.session_state['read_points'] = points
+            st.session_state['read_headers'] = headers
+            st.session_state['sheet_name'] = sheet_name
+            st.session_state['reread_data'] = False
 
-    return points, customers, headers, sheet_name    
+        return points, customers, headers, sheet_name    
 
 def allow_change():
     selected_prefix = "Selected, "
@@ -154,7 +159,6 @@ def allow_change():
             st.write(f'Error saving the adjustments: {response}')
     
     def update_data(route_change):
-        
         # Just changing their route id
         records_to_move = []
         for point in st.session_state['selected']:
@@ -169,7 +173,9 @@ def allow_change():
             single_index = records_to_move[0]
             record_to_move = original.loc[single_index:single_index+0]
 
-            first_position = np.where(original['route'] == route_change)[0][0]
+
+            first_positions = original[original['node_num'] == 'Depot']
+            first_position = first_positions[first_positions['route'] == route_change].iloc[0:1].index[0]
             original = original.drop(index=single_index)
             firsthalf = original.loc[0:first_position]
             secondhalf = original.loc[first_position+1:]
@@ -193,6 +199,7 @@ def allow_change():
         clear_selection()
 
     original_points, customers, headers, sheet_name = read_data()
+    st.session_state['sheet_name'] = sheet_name
     st.session_state['adjustment_columns_to_export'] = original_points.columns
     points = pd.merge(original_points, customers, left_on='node_name', right_on='name', how='left')
     lat = points['lat_orig'].mean()
@@ -242,7 +249,7 @@ def allow_change():
         assigning = st.button('Click to assign according to your selection')
         if assigning:
             update_data(route_change)
-            st.session_state['reread_data'] = True
+            #st.session_state['reread_data'] = True
         
         st.write(st.session_state['points'].groupby('route')['demands'].sum())
 
@@ -251,18 +258,21 @@ def allow_change():
         if clearing:
             clear_selection()
 
-        submitting = st.button('Click here to submit your adjustments and calculate a final solution')
-    
+        submitting = False
+        #submitting = st.button('Click here to submit your adjustments and calculate a final solution')
+        exporting = st.button('Save current work')
+        if exporting:
+            st.write(st.session_state['points'])
+            st.session_state['points'][original_points.columns].to_excel(f'manual_routes_edits.xlsx', index=False, sheet_name=sheet_name)
+            with open(f'manual_routes_edits.xlsx', 'rb') as opened:
+                st.download_button('Download manual_routes_edits.xlsx', data=opened, file_name='manual_routes_edits.xlsx')
+
     if submitting:
         with st.spinner('Computing routes, please wait...'):
             response, st.session_state.solution, st.session_state.map, st.session_state.solution_zip = adjust_from_gui()
         st.session_state.b64 = base64.b64encode(st.session_state.solution_zip).decode()
         st.session_state['display_adjusted'] = True
-    #exporting = st.button('Export')
-    #if exporting:
-    #    st.write(st.session_state['points'])
-    #    st.session_state['points'][original_points.columns].to_excel('adjusted.xlsx', index=False, sheet_name=sheet_name)
-
+    
 def download_solution(solution_path, map_path):
     timestamp = datetime.datetime.now().strftime(format='%Y%m%d-%H-%M-%S')
     response = requests.get(f'{host_url}/download/?session_id={session_id}')
@@ -371,7 +381,9 @@ def main():
         st.session_state.solution_zip = None
     if 'b64' not in st.session_state:
         st.session_state.b64 = None
-
+    if 'file_already_uploaded' not in st.session_state:
+        st.session_state['file_already_uploaded'] = False
+    
     vehicles_text = st.empty()
     vehicles_text.text('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
     recalculate_map = st.toggle(label='Calculate area to download from OpenStreetMaps automatically based on the locations to visit', value=True)
@@ -418,9 +430,7 @@ def main():
     extra_configuration = False
 
     solution_requested = False
-    
-    if len(uploaded_files) > 0 and len(missing_files) == 0:
-        
+    if len(uploaded_files) > 0 and len(missing_files) == 0 and not st.session_state['file_already_uploaded']:
         # validation steps
         for uploaded in uploaded_files:
             if uploaded.name == 'config.json':
@@ -527,6 +537,7 @@ def main():
 
     # On button press, save solution to session state to ensure persistence of added elements to dashboard
     if solution_requested:
+        st.session_state['file_already_uploaded'] = True
         with st.spinner('Computing routes, please wait...'):
             st.session_state.solution, st.session_state.map, st.session_state.solution_zip = request_solution()
         st.session_state.b64 = base64.b64encode(st.session_state.solution_zip).decode()
