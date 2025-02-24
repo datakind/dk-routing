@@ -259,7 +259,7 @@ def allow_change():
             clear_selection()
 
         submitting = False
-        #submitting = st.button('Click here to submit your adjustments and calculate a final solution')
+        submitting = st.button('Click here to submit your adjustments and calculate a final solution')
         exporting = st.button('Save current work')
         if exporting:
             st.write(st.session_state['points'])
