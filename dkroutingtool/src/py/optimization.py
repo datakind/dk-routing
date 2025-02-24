@@ -1688,7 +1688,7 @@ def presolve(node_data, config):
     for this_config in config['zone_configs']:
         only_the_zone = {'zone': this_config['optimized_region']}
         node_data_filtered = node_data.filter_nodedata(only_the_zone, filter_name_str='multiple_sample')
-        gps = node_data_filtered.df_gps_verbose
+        gps = node_data_filtered.df_gps_verbose.copy()
         total_demand = gps['buckets'].sum()
 
         capacity = this_config['trips_vehicle_profile'][0][1] # only works with enable_unload == False because of this line
@@ -1719,7 +1719,7 @@ def presolve_with_prior(node_data, config):
         capacity = this_config['trips_vehicle_profile'][0][1] # only works with enable_unload == False because of this line
                                     
         node_data_filtered = node_data.filter_nodedata(only_the_zone, filter_name_str='multiple_sample')
-        gps = node_data_filtered.df_gps_verbose
+        gps = node_data_filtered.df_gps_verbose.copy()
         rowmapping = dict()
         for index, row in gps.iterrows():
             rowmapping[row['name']] = index

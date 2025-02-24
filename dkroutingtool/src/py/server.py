@@ -1,4 +1,5 @@
 import traceback
+import json
 import io
 from contextlib import redirect_stderr
 import main_application
@@ -12,6 +13,7 @@ import shutil
 import requests
 import os
 import subprocess
+import pandas as pd
 
 app = fastapi.FastAPI()
 
@@ -82,11 +84,11 @@ def get_map_info():
     return {'message': stateful_info.get('bounding_box')}
 
 @app.post('/adjust_solution')
-def get_solution(files: List[UploadFile] = File(...), session_id: str=''):
+def get_solution_from_file(files: List[UploadFile] = File(...), session_id: str=''):
     most_recent = find_most_recent_output(session_id)
     print(most_recent)
 
-    for file in files:
+    for file in files: # Only one expected
         contents = file.file.read()
         #print(contents)
         with open(f'{most_recent}/manual_edits/{file.filename}', 'wb') as f:
@@ -99,13 +101,46 @@ def get_solution(files: List[UploadFile] = File(...), session_id: str=''):
     main_application.main(user_directory=f'data{session_id}')
     return {'message': 'Manual solution updated, please download again'}
 
+@app.get('/adjust_solution_from_gui')
+def get_solution_from_gui(session_id: str=''):
+    most_recent = find_most_recent_output(session_id)
+    print(most_recent)
+    main_application.args.cloud = False
+    main_application.args.manual_mapping_mode = True
+    main_application.args.manual_input_path = f'{most_recent}/manual_edits'
+    main_application.main(user_directory=f'data{session_id}')
+    return {'message': 'Manual solution updated, please download again'}
+
 @app.post('/save_adjustments')
-def save_adjustments():
+def save_adjustments(files: List[UploadFile] = File(...), session_id: str='', sheet_name: str='Sheet1'):
+    most_recent = find_most_recent_output(session_id)
+    for file in files: # Only one expected
+        contents = file.file.read()
+        file.file.close()
+        adjustments = pd.read_json(contents, orient='split')
+        adjustments.to_excel(f'{most_recent}/manual_edits/manual_routes_edits.xlsx', index=False, sheet_name=sheet_name)
+
     return {'message': 'Adjustments saved'}
 
 @app.get('/get_adjustments')
 def get_adjustments(session_id: str=''):
-    return {'message': stateful_info.get(f'{session_id}_adjustments')}
+    most_recent = find_most_recent_output(session_id)
+    dataset = dict()
+    adjustments = pd.read_excel(f'{most_recent}/manual_edits/manual_routes_edits.xlsx', sheet_name=None)
+    error = ''
+    if len(adjustments.keys()) > 1:
+        error = 'This does not support multiple configurations yet, please make sure you only have one item in "zone_configs" in config.json.'
+    sheet_name = list(adjustments.keys())[0]
+    adjustments = adjustments[sheet_name]
+    
+    dataset['adjustments'] = adjustments.to_json(orient='split', index=False)
+    dataset['customers'] = pd.read_excel(f'data{session_id}/customer_data.xlsx').to_json(orient='split', index=False)
+    with open(f'data{session_id}/custom_header.yaml', 'r') as path:
+        dataset['headers'] = path.read()
+    dataset['error'] = error
+    dataset['sheet_name'] = sheet_name
+
+    return {'message': json.dumps(dataset)}
 
 @app.get('/download')
 def download(session_id: str=''):
