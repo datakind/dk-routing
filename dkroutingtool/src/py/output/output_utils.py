@@ -1,5 +1,7 @@
 import pandas as pd
 
+colorList = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'beige', 'white', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'gray']
+
 def write_to_spreadsheet(zone_route_map, routes_for_mapping, file_manager):
     #Create output for manual route editing option
     zone_dfs = {}
@@ -61,7 +63,6 @@ def write_to_spreadsheet(zone_route_map, routes_for_mapping, file_manager):
             zone_df.to_excel(writer, sheet_name=zone_key, index=False)
 
     with pd.ExcelWriter(str(output_path).replace('manual_routes','legacy_manual_routes'), engine='openpyxl') as writer: # for a specific flow, would like to deprecate or find a better solution
-        colorList = sorted(["red","blue","green","orange","purple","yellow","black","pink"]) # again, not great ad-hoc thing here
         for zone_key, zone_df in zone_dfs.items():
             new_zone_df = zone_df.copy()
             for c in colorList:
