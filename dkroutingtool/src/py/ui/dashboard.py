@@ -157,7 +157,8 @@ def allow_change():
         records_to_move = []
         for point in st.session_state['selected']:
             index = int(point.split('Index:')[-1].strip())
-            records_to_move.append(index)
+            if index not in record_to_move:
+                records_to_move.append(index)
         
         if len(records_to_move) > 1 and st.session_state['points'].loc[records_to_move[0],'route'] != route_change:
             first_color_condition = True
