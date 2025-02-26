@@ -8,7 +8,8 @@ import streamlit.components.v1 as components
 from folium.plugins import Draw
 from streamlit_folium import st_folium
 from folium.plugins import BeautifyIcon
-from io import StringIO
+from io import StringIO, BytesIO
+import tempfile
 
 import folium
 import os
@@ -22,7 +23,7 @@ import yaml
 #TODO Need to make sure you can retrieve original solution state even if manual adjustments were requested? 
 
 # color list is the same as the backend
-colorlist = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'beige', 'white', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'gray']
+colorlist = ['green', 'blue',  'orange', 'purple', 'pink', 'black', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'beige', 'gray', 'white']
 
 st.set_page_config(page_title='Container-based Action Routing Tool (CART)', layout="wide")
 
@@ -54,32 +55,21 @@ def request_data_for_adjustments():
     return customers, headers, sheet_name, points
 
 def read_data():
-    #customers, headers, sheet_name, points = request_data_for_adjustments()
-    #return customers, headers, sheet_name, points
-    if True:
-        if 'reread_data' in st.session_state and st.session_state['reread_data']:
-            customers, headers, sheet_name, points = request_data_for_adjustments()
-            st.session_state['read_customers'] = customers
-            st.session_state['read_points'] = points
-            st.session_state['read_headers'] = headers
-            st.session_state['sheet_name'] = sheet_name
-            st.session_state['reread_data'] = False
-
-        elif 'read_customers' in st.session_state:
-            customers = st.session_state['read_customers']
-            headers = st.session_state['read_headers']
-            sheet_name = st.session_state['sheet_name']
-            points = st.session_state['read_points']
+    if st.session_state['reread_data']:
+        customers, headers, sheet_name, points = request_data_for_adjustments()
+        st.session_state['read_customers'] = customers
+        st.session_state['read_points'] = points
+        st.session_state['read_headers'] = headers
+        st.session_state['sheet_name'] = sheet_name
+        st.session_state['reread_data'] = False
         
-        else:
-            customers, headers, sheet_name, points = request_data_for_adjustments()
-            st.session_state['read_customers'] = customers
-            st.session_state['read_points'] = points
-            st.session_state['read_headers'] = headers
-            st.session_state['sheet_name'] = sheet_name
-            st.session_state['reread_data'] = False
-
-        return points, customers, headers, sheet_name    
+    else:
+        customers = st.session_state['read_customers']
+        headers = st.session_state['read_headers']
+        sheet_name = st.session_state['sheet_name']
+        points = st.session_state['read_points']
+       
+    return points, customers, headers, sheet_name    
 
 def allow_change():
     selected_prefix = "Selected, "
@@ -89,21 +79,21 @@ def allow_change():
             route_counter = 0
             for i,p in frame.iterrows(): # crucial information here is that i is the index label
                 if not pd.isna(p['lat_orig']):
-                    if "Relanse" in p['columns_to_display']:
-                        icon = folium.plugins.BeautifyIcon(border_color=route_key.split('-')[0], 
+                    if "Relanse" in p['columns_to_display']: # should generalize beyond hard coded values
+                        icon = BeautifyIcon(border_color=route_key.split('-')[0], 
                             text_color='black', 
                             background_color='#BFFFDA',
                             number=route_counter,
                             icon_shape='circle')
 
                     if "Koupe" in p['columns_to_display']:
-                        icon = folium.plugins.BeautifyIcon(border_color=route_key.split('-')[0], 
+                        icon = BeautifyIcon(border_color=route_key.split('-')[0], 
                             text_color='black', 
                             background_color='#FFBFFA',
                             number=route_counter,
                             icon_shape='circle')
                     else:
-                        icon = folium.plugins.BeautifyIcon(border_color=route_key.split('-')[0], 
+                        icon = BeautifyIcon(border_color=route_key.split('-')[0], 
                             text_color='black', 
                             number=route_counter,
                             icon_shape='marker')
@@ -147,6 +137,8 @@ def allow_change():
         st.session_state['selected'] = []
         st.session_state['last_selected'] = None
         st.session_state['reset_number'] += 1
+        st.session_state['zoom'] = map_output['zoom']
+        st.session_state['center'] = [map_output['center']['lat'], map_output['center']['lng']]
         st.rerun()
     
     def save_adjustments():
@@ -160,11 +152,17 @@ def allow_change():
     
     def update_data(route_change):
         # Just changing their route id
+        first_color_condition = False
+
         records_to_move = []
         for point in st.session_state['selected']:
             index = int(point.split('Index:')[-1].strip())
             records_to_move.append(index)
-            st.session_state['points'].loc[index, 'route'] = route_change
+        
+        if len(records_to_move) > 1 and st.session_state['points'].loc[records_to_move[0],'route'] != route_change:
+            first_color_condition = True
+
+        st.session_state['points'].loc[records_to_move, 'route'] = route_change
         
         original = st.session_state['points'].copy()
         
@@ -172,7 +170,6 @@ def allow_change():
         if len(st.session_state['selected']) == 1:
             single_index = records_to_move[0]
             record_to_move = original.loc[single_index:single_index+0]
-
 
             first_positions = original[original['node_num'] == 'Depot']
             first_position = first_positions[first_positions['route'] == route_change].iloc[0:1].index[0]
@@ -185,12 +182,20 @@ def allow_change():
 
         else:
             consecutive_records = original.loc[records_to_move]
-            first_position = records_to_move[0]
+            if first_color_condition:
+                first_positions = original[original['node_num'] == 'Depot']
+                first_position = first_positions[first_positions['route'] == route_change].iloc[0:1].index[0]
+            else:
+                first_position = records_to_move[0]
             
             original = original.drop(index=records_to_move)
             
-            firsthalf = original.loc[0:first_position-1]
-            secondhalf = original.loc[first_position+1:]
+            if first_color_condition:
+                firsthalf = original.loc[0:first_position]
+                secondhalf = original.loc[first_position+1:]
+            else:
+                firsthalf = original.loc[0:first_position-1]
+                secondhalf = original.loc[first_position+1:]
 
             newpoints = pd.concat([firsthalf, consecutive_records, secondhalf]).reset_index(drop=True)
             st.session_state['points'] = newpoints.copy()            
@@ -245,14 +250,16 @@ def allow_change():
         update_map()
     
     with info_columns:
-        route_change = st.selectbox(label="Choose a route to assign the selected points", options=partitions)
+        route_change = st.selectbox(label="Choose a route to assign the selected points", options=sorted(partitions))
         assigning = st.button('Click to assign according to your selection')
         if assigning:
             update_data(route_change)
-            #st.session_state['reread_data'] = True
         
-        st.write(st.session_state['points'].groupby('route')['demands'].sum())
-
+        capacity_threshold = st.text_input('Capacity threshold', 84)
+        sums = st.session_state['points'].groupby('route')['demands'].sum()
+        if np.any(sums > int(capacity_threshold)):
+            st.error('Check your routes for capacity, one route exceeds the threshold')
+        st.write(sums)
 
         clearing = st.button('Clear current selection')
         if clearing:
@@ -262,10 +269,13 @@ def allow_change():
         submitting = st.button('Click here to submit your adjustments and calculate a final solution')
         exporting = st.button('Save current work')
         if exporting:
-            st.write(st.session_state['points'])
-            st.session_state['points'][original_points.columns].to_excel(f'manual_routes_edits.xlsx', index=False, sheet_name=sheet_name)
-            with open(f'manual_routes_edits.xlsx', 'rb') as opened:
-                st.download_button('Download manual_routes_edits.xlsx', data=opened, file_name='manual_routes_edits.xlsx')
+            #st.write(st.session_state['points'])
+            legacy_manual_edits = st.session_state['points'].copy() 
+            legacy_manual_edits['route'] = legacy_manual_edits['route'].replace('[a-z-]', '', regex=True)
+            exceloutput = BytesIO()
+            legacy_manual_edits[original_points.columns].to_excel(exceloutput, index=False, sheet_name=sheet_name, engine='openpyxl')
+            exceloutput.seek(0)
+            st.download_button('Download legacy_manual_routes_edits.xlsx', data=exceloutput, file_name='legacy_manual_routes_edits.xlsx')
 
     if submitting:
         with st.spinner('Computing routes, please wait...'):
@@ -278,18 +288,19 @@ def download_solution(solution_path, map_path):
     response = requests.get(f'{host_url}/download/?session_id={session_id}')
 
     solution_zip = response.content
+        
+    with tempfile.TemporaryDirectory() as tempdir:
+        with open(f'{tempdir}/solution_files_{timestamp}.zip', 'wb') as f:
+            f.write(solution_zip)
 
-    with open(f'solution_files_{timestamp}.zip', 'wb') as f:
-        f.write(solution_zip)
-    
-    with zipfile.ZipFile(f'solution_files_{timestamp}.zip', 'r') as zipped:
-        zipped.extractall(f'solution_files_{timestamp}/')
-    
-    with open(f'solution_files_{timestamp}/{solution_path}', 'r') as solution_txt:
-        solution = solution_txt.read().replace('\n', '  \n')
-    
-    with open(f'solution_files_{timestamp}/{map_path}', 'r') as map_html:
-        solutionmap = map_html.read()
+        with zipfile.ZipFile(f'{tempdir}/solution_files_{timestamp}.zip', 'r') as zipped:
+            zipped.extractall(f'{tempdir}/solution_files_{timestamp}/')
+        
+        with open(f'{tempdir}/solution_files_{timestamp}/{solution_path}', 'r') as solution_txt:
+            solution = solution_txt.read().replace('\n', '  \n')
+        
+        with open(f'{tempdir}/solution_files_{timestamp}/{map_path}', 'r') as map_html:
+            solutionmap = map_html.read()
 
     return solution, solutionmap, solution_zip
 
@@ -383,6 +394,8 @@ def main():
         st.session_state.b64 = None
     if 'file_already_uploaded' not in st.session_state:
         st.session_state['file_already_uploaded'] = False
+    if 'reread_data' not in st.session_state:
+        st.session_state['reread_data'] = True
     
     vehicles_text = st.empty()
     vehicles_text.text('Available vehicle profiles: '+ requests.get(f'{host_url}/available_vehicles').json()['message'])
@@ -443,7 +456,7 @@ def main():
                 extra_configuration = True
             
             if uploaded.name == 'customer_data.xlsx':
-                    customers = pd.read_excel(uploaded)
+                    customers = pd.read_excel(uploaded, engine='openpyxl')
                     uploaded.seek(0)
             if uploaded.name == 'custom_header.yaml':
                     headers = yaml.load(uploaded, Loader=yaml.CLoader)
@@ -576,101 +589,102 @@ def show_manual_adjustments():
     st.markdown(f'<a href="data:application/octet-stream;base64,{st.session_state.b64}" download="{session_id}.zip">Download solution files</a>', unsafe_allow_html=True)
     components.html(st.session_state.map, height=800)
     st.write(st.session_state.solution)
-    
+
 def allow_change_presolve():
-    """Ignore for now, the case for adjustments post-solve is more important"""
-    selected_prefix = "Selected, "
+    if False:
+        """Ignore for now, the case for adjustments post-solve is more important"""
+        selected_prefix = "Selected, "
 
-    def add_markers():
-        for i,p in st.session_state['points'].iterrows():
-            
-            icon = folium.plugins.BeautifyIcon(border_color=colorlist[p['partition']], 
-                                        text_color='black', 
-                                        number=i,
-                                        icon_shape='marker')
-            marker = folium.Marker([p['x'], p['y']], 
-                                tooltip=f"Name:{p['name']}, Route: {p['partition']}, Index: {i}",
-                                icon=icon)
-            fg.add_child(marker)
+        def add_markers():
+            for i,p in st.session_state['points'].iterrows():
+                
+                icon = folium.plugins.BeautifyIcon(border_color=colorlist[p['partition']], 
+                                            text_color='black', 
+                                            number=i,
+                                            icon_shape='marker')
+                marker = folium.Marker([p['x'], p['y']], 
+                                    tooltip=f"Name:{p['name']}, Route: {p['partition']}, Index: {i}",
+                                    icon=icon)
+                fg.add_child(marker)
 
-        for selected in st.session_state['selected']:
-            index = int(selected.split('Index:')[-1].strip())
-            selected = st.session_state['points'].iloc[index]
-            marker = folium.Marker([selected['x'], selected['y']], 
-                                tooltip=f"{selected_prefix}Name:{selected['name']}, Route: {selected['partition']}, Index: {index}",
-                                icon=folium.Icon(color='gray', icon='star'))
-            fg.add_child(marker)
+            for selected in st.session_state['selected']:
+                index = int(selected.split('Index:')[-1].strip())
+                selected = st.session_state['points'].iloc[index]
+                marker = folium.Marker([selected['x'], selected['y']], 
+                                    tooltip=f"{selected_prefix}Name:{selected['name']}, Route: {selected['partition']}, Index: {index}",
+                                    icon=folium.Icon(color='gray', icon='star'))
+                fg.add_child(marker)
 
-    def update_map():
-        just_clicked = map_output['last_object_clicked_tooltip']
-        if just_clicked is not None and st.session_state['last_selected'] != just_clicked:
-            if not just_clicked.startswith('Selected'):
-                st.session_state['selected'].add(just_clicked)
-                st.session_state['last_selected'] = just_clicked
-                st.rerun()
-            else:
-                original_clicked = just_clicked[len(selected_prefix):]
-                if original_clicked in st.session_state['selected']:
-                    st.session_state['selected'].remove(original_clicked)
+        def update_map():
+            just_clicked = map_output['last_object_clicked_tooltip']
+            if just_clicked is not None and st.session_state['last_selected'] != just_clicked:
+                if not just_clicked.startswith('Selected'):
+                    st.session_state['selected'].add(just_clicked)
+                    st.session_state['last_selected'] = just_clicked
                     st.rerun()
+                else:
+                    original_clicked = just_clicked[len(selected_prefix):]
+                    if original_clicked in st.session_state['selected']:
+                        st.session_state['selected'].remove(original_clicked)
+                        st.rerun()
 
-    def update_data():
-        for point in st.session_state['selected']:
-            index = int(point.split('Index:')[-1].strip())
-            st.session_state['points'].loc[index, 'partition'] = route_change
-        st.session_state['selected'] = set()
-        st.session_state['last_selected'] = None
-        st.session_state['reset_number'] += 1
-        st.rerun()
+        def update_data():
+            for point in st.session_state['selected']:
+                index = int(point.split('Index:')[-1].strip())
+                st.session_state['points'].loc[index, 'partition'] = route_change
+            st.session_state['selected'] = set()
+            st.session_state['last_selected'] = None
+            st.session_state['reset_number'] += 1
+            st.rerun()
 
-    points = pd.DataFrame()
-    points['x'] = [-11.98, -11.985, -11.982, -11.989]
-    points['y'] = [-77.018, -77.017, -77.017, -77.015]
-    points['partition'] = [1, 1, 2, 0]
-    points['name'] = ['a', 'b', 'c', 'd']
+        points = pd.DataFrame()
+        points['x'] = [-11.98, -11.985, -11.982, -11.989]
+        points['y'] = [-77.018, -77.017, -77.017, -77.015]
+        points['partition'] = [1, 1, 2, 0]
+        points['name'] = ['a', 'b', 'c', 'd']
 
-    partitions = set(points['partition'])
+        partitions = set(points['partition'])
 
-    center = [-11.9858, -77.019]
-    zoom = 15
+        center = [-11.9858, -77.019]
+        zoom = 15
 
-    if 'points' not in st.session_state:
-        st.session_state['points'] = points.copy()
-    if 'reset_number' not in st.session_state:
-        st.session_state['reset_number'] = 0
-    if "center" not in st.session_state:
-        st.session_state["center"] = [-11.9858, -77.019]
-    if "zoom" not in st.session_state:
-        st.session_state["zoom"] = 15
-    if 'last_selected' not in st.session_state:
-        st.session_state['last_selected'] = None
-    if 'selected' not in st.session_state:
-        st.session_state['selected'] = set()
+        if 'points' not in st.session_state:
+            st.session_state['points'] = points.copy()
+        if 'reset_number' not in st.session_state:
+            st.session_state['reset_number'] = 0
+        if "center" not in st.session_state:
+            st.session_state["center"] = [-11.9858, -77.019]
+        if "zoom" not in st.session_state:
+            st.session_state["zoom"] = 15
+        if 'last_selected' not in st.session_state:
+            st.session_state['last_selected'] = None
+        if 'selected' not in st.session_state:
+            st.session_state['selected'] = set()
 
-    key = f"key_{st.session_state['reset_number']}"
+        key = f"key_{st.session_state['reset_number']}"
 
-    m = folium.Map(location=center, zoom_start=zoom)
+        m = folium.Map(location=center, zoom_start=zoom)
 
-    fg = folium.FeatureGroup(name="Markers")
+        fg = folium.FeatureGroup(name="Markers")
 
-    add_markers()
+        add_markers()
 
-    map_output = st_folium(
-        m,
-        center=st.session_state["center"],
-        zoom=st.session_state["zoom"],
-        key=key,
-        feature_group_to_add=fg,
-        height=500,
-        width=700,
-    )
+        map_output = st_folium(
+            m,
+            center=st.session_state["center"],
+            zoom=st.session_state["zoom"],
+            key=key,
+            feature_group_to_add=fg,
+            height=500,
+            width=700,
+        )
 
-    update_map()
+        update_map()
 
-    route_change = st.selectbox(label="Choose a route to assign the selected points", options=partitions)
-    assigning = st.button('Click to assign according to your selection')
-    if assigning:
-        update_data()
+        route_change = st.selectbox(label="Choose a route to assign the selected points", options=partitions)
+        assigning = st.button('Click to assign according to your selection')
+        if assigning:
+            update_data()
 
 
 if __name__ == '__main__':

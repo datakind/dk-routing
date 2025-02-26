@@ -14,8 +14,8 @@ import osrmbindings
 #import osrm_text_instructions
 import os
 
-#also change it in output_utils and dashboard.py
-colorList = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'beige', 'white', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'gray']
+#also change it in dashboard.py
+colorList = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'beige', 'gray', 'white']
 """
 colors_hex = [
     "#FF0000",  # Pure Red
