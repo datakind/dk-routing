@@ -30,7 +30,7 @@ import ujson
 
 import manual_viz
 import file_config
-from visualization import colorList
+from visualization import colorList, color_names
 from output.route_solution_data import IntermediateOptimizationSolution, FinalOptimizationSolution
 import osrmbindings
 
@@ -1452,7 +1452,7 @@ def add_display_name(route_dict):
     new_route_dict = copy.deepcopy(route_dict)
 
     for key in new_route_dict:
-        new_route_dict[key]['display_name'] = f'{colorList[key % len(colorList)]}-{key+1}'
+        new_route_dict[key]['display_name'] = f'{color_names[key % len(colorList)]}-{key+1}'
     
     return new_route_dict
 

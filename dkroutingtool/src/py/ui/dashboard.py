@@ -22,8 +22,9 @@ import yaml
 
 #TODO Need to make sure you can retrieve original solution state even if manual adjustments were requested? 
 
-# color list is the same as the backend
-colorlist = ['green', 'blue',  'orange', 'purple', 'pink', 'black', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'beige', 'gray', 'white']
+colors_hex = ["#FF0000", "#00FF00", "#0000FF", "#FF00FF", "#00FFFF", "#FF8000", "#800080", "#008000", "#800000", "#008080", "#808000", "#4682B4", "#A0522D", "#000000", "#191970", "#00FF80", "#FF0080", "#80FF00", "#8000FF", "#0080FF", "#E9967A", "#8B008B", "#FFBF00", "#000080", "#FFFF00"]
+color_names = ["red", "lime", "blue", "magenta", "cyan", "orange", "purple", "darkgreen", "maroon", "teal", "olive", "steelblue", "sienna", "black", "midnightblue", "springgreen", "rose", "chartreuse", "violet", "dodgerblue", "darksalmon", "darkmagenta", "amber", "navy", "yellow"]
+color_map = {k:v for k,v in zip(color_names,colors_hex)}
 
 st.set_page_config(page_title='Container-based Action Routing Tool (CART)', layout="wide")
 
@@ -71,6 +72,33 @@ def read_data():
        
     return points, customers, headers, sheet_name    
 
+def pick_icon(p, route_key, route_counter, selection=False):
+    color = route_key.split('-')[0]
+    color_hex = color_map[color]
+    if "Relanse" in p['columns_to_display']: # should generalize beyond hard coded values
+        icon = BeautifyIcon(border_color=color_hex if not selection else 'black', 
+            text_color='black' if not selection else 'white', 
+            background_color='white' if not selection else 'black',
+            number=route_counter,
+            icon_shape='circle')
+
+    elif "Koupe" in p['columns_to_display']:
+        icon = BeautifyIcon(border_color=color_hex if not selection else 'black', 
+            text_color='black' if not selection else 'white', 
+            background_color='white' if not selection else 'black',
+            number=route_counter,
+            inner_icon_style='font-size:12px;padding-left:3px;padding-right:3px',
+            icon_shape='rectangle')    
+    else:
+        icon = BeautifyIcon(border_color=color_hex if not selection else 'black', 
+            text_color='black' if not selection else 'white',
+            background_color='white' if not selection else 'black', 
+            number=route_counter,
+            icon_shape='marker')
+        
+    return icon
+
+
 def allow_change():
     selected_prefix = "Selected, "
 
@@ -79,28 +107,17 @@ def allow_change():
             route_counter = 0
             for i,p in frame.iterrows(): # crucial information here is that i is the index label
                 if not pd.isna(p['lat_orig']):
-                    if "Relanse" in p['columns_to_display']: # should generalize beyond hard coded values
-                        icon = BeautifyIcon(border_color=route_key.split('-')[0], 
-                            text_color='black', 
-                            background_color='#BFFFDA',
-                            number=route_counter,
-                            icon_shape='circle')
-
-                    if "Koupe" in p['columns_to_display']:
-                        icon = BeautifyIcon(border_color=route_key.split('-')[0], 
-                            text_color='black', 
-                            background_color='#FFBFFA',
-                            number=route_counter,
-                            icon_shape='circle')
-                    else:
-                        icon = BeautifyIcon(border_color=route_key.split('-')[0], 
-                            text_color='black', 
-                            number=route_counter,
-                            icon_shape='marker')
+                    icon = pick_icon(p, route_key, route_counter)
+                    
                     marker = folium.Marker([p['lat_orig'], p['long_orig']], 
-                                        tooltip=f"Name:{p['name']}, Route: {route_key}, Info: {p['columns_to_display']} {p['additional_info']}, Index: {i}",
-                                        icon=icon)
-                    fg.add_child(marker)
+                    tooltip=f"Name:{p['name']}, Route: {route_key}, Info: {p['columns_to_display']} {p['additional_info']}, Index: {i}",
+                    icon=icon)
+
+                    if "Aktif" not in p['columns_to_display']:
+                        fg_other.add_child(marker)
+                    else:
+                        fg.add_child(marker)
+
                     route_counter += 1
                 else:
                     continue
@@ -108,31 +125,31 @@ def allow_change():
         for selected_index, selected in enumerate(st.session_state['selected']):
             index = int(selected.split('Index:')[-1].strip())
             selected = st.session_state['points'].loc[index]
-            
-            icon = folium.plugins.BeautifyIcon(border_color='black', 
-                                        text_color='white',
-                                        background_color='black', 
-                                        number=selected_index,
-                                        icon_shape='marker')
+            icon = pick_icon(selected, 'black-none', selected_index, selection=True)
             
             marker = folium.Marker([selected['lat_orig'], selected['long_orig']], 
-                                tooltip=f"{selected_prefix}Name:{selected['name']}, Route: {selected['route']}, Index: {index}",
+                                tooltip=f"{selected_prefix}Name:{selected['name']}, Route: {selected['route']}, Info: {selected['columns_to_display']} {selected['additional_info']}, Index: {index}",
                                 icon=icon)
-            fg.add_child(marker)
+            
+            if "Aktif" not in selected['columns_to_display']:
+                fg_other.add_child(marker)
+            else:
+                fg.add_child(marker)
 
     def update_map():
         just_clicked = map_output['last_object_clicked_tooltip']
-        if just_clicked is not None and st.session_state['last_selected'] != just_clicked:
-            if not just_clicked.startswith('Selected'):
-                st.session_state['selected'].append(just_clicked)
-                st.session_state['last_selected'] = just_clicked
-                st.rerun()
-            else:
-                original_clicked = just_clicked[len(selected_prefix):]
-                if original_clicked in st.session_state['selected']:
-                    st.session_state['selected'].remove(original_clicked)
+        if just_clicked is not None:
+            if st.session_state['last_selected'] != just_clicked:
+                if not just_clicked.startswith('Selected'):
+                    st.session_state['selected'].append(just_clicked)
+                    st.session_state['last_selected'] = just_clicked
                     st.rerun()
-    
+                else:
+                    original_clicked = just_clicked[len(selected_prefix):]
+                    if original_clicked in st.session_state['selected']:
+                        st.session_state['selected'].remove(original_clicked)
+                        st.rerun()
+        
     def clear_selection():
         st.session_state['selected'] = []
         st.session_state['last_selected'] = None
@@ -214,11 +231,13 @@ def allow_change():
         st.session_state['selected'] = []
 
     key = f"key_{st.session_state['reset_number']}"
-
     m = folium.Map(location=center, zoom_start=zoom)
+    control = folium.LayerControl()
 
     fg = folium.FeatureGroup(name="Markers")
-
+    fg_other = folium.FeatureGroup(name="Others")
+    #fg_selected = folium.FeatureGroup(name="Selected")
+    #route_fgs = [folium.FeatureGroup(name=name) for name in sorted(list(partitions))]
     add_markers()
 
     map_columns, info_columns = st.columns([3,1])
@@ -228,25 +247,36 @@ def allow_change():
             center=st.session_state["center"],
             zoom=st.session_state["zoom"],
             key=key,
-            feature_group_to_add=fg,
+            feature_group_to_add=[fg, fg_other],
             height=800,
-            width=1200,
+            width=800,
+            layer_control = control
         )
 
         update_map()
     
     with info_columns:
+        if 'edited_notes' not in st.session_state:
+            st.session_state['edited_notes'] = ''
+        
+        def save_notes():
+            st.rerun()
+        
         route_change = st.selectbox(label="Choose a route to assign the selected points", options=sorted(partitions))
         assigning = st.button('Click to assign according to your selection')
         if assigning:
             update_data(route_change)
         
         capacity_threshold = st.text_input('Capacity threshold', 84)
-        sums = st.session_state['points'].groupby('route')['demands'].sum()
-        if np.any(sums > int(capacity_threshold)):
-            st.error('Check your routes for capacity, one route exceeds the threshold')
-        st.write(sums)
 
+        sums = pd.DataFrame(st.session_state['points'].groupby('route')['demands'].sum()).reset_index()
+        if np.any(sums['demands'] > int(capacity_threshold)):
+            st.error('Check your routes for capacity, one route exceeds the threshold')
+        
+        sums['Notes'] = st.session_state['edited_notes']
+        edited = st.data_editor(sums, disabled=['route', 'demands'], on_change=save_notes, hide_index=True)
+        st.session_state['edited_notes'] = edited['Notes'].values
+        
         clearing = st.button('Clear current selection')
         if clearing:
             clear_selection()
