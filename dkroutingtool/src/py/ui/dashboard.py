@@ -157,7 +157,7 @@ def allow_change():
         records_to_move = []
         for point in st.session_state['selected']:
             index = int(point.split('Index:')[-1].strip())
-            if index not in record_to_move:
+            if index not in records_to_move:
                 records_to_move.append(index)
         
         if len(records_to_move) > 1 and st.session_state['points'].loc[records_to_move[0],'route'] != route_change:
@@ -166,41 +166,26 @@ def allow_change():
         st.session_state['points'].loc[records_to_move, 'route'] = route_change
         
         original = st.session_state['points'].copy()
-        
-        # Reordering
-        if len(st.session_state['selected']) == 1:
-            single_index = records_to_move[0]
-            record_to_move = original.loc[single_index:single_index+0]
 
+        consecutive_records = original.loc[records_to_move]
+        if first_color_condition:
             first_positions = original[original['node_num'] == 'Depot']
             first_position = first_positions[first_positions['route'] == route_change].iloc[0:1].index[0]
-            original = original.drop(index=single_index)
+        else:
+            first_position = records_to_move[0]
+        
+        original = original.drop(index=records_to_move)
+        
+        if first_color_condition:
             firsthalf = original.loc[0:first_position]
             secondhalf = original.loc[first_position+1:]
-
-            newpoints = pd.concat([firsthalf, record_to_move, secondhalf]).reset_index(drop=True)
-            st.session_state['points'] = newpoints.copy()            
-
         else:
-            consecutive_records = original.loc[records_to_move]
-            if first_color_condition:
-                first_positions = original[original['node_num'] == 'Depot']
-                first_position = first_positions[first_positions['route'] == route_change].iloc[0:1].index[0]
-            else:
-                first_position = records_to_move[0]
-            
-            original = original.drop(index=records_to_move)
-            
-            if first_color_condition:
-                firsthalf = original.loc[0:first_position]
-                secondhalf = original.loc[first_position+1:]
-            else:
-                firsthalf = original.loc[0:first_position-1]
-                secondhalf = original.loc[first_position+1:]
+            firsthalf = original.loc[0:first_position-1]
+            secondhalf = original.loc[first_position+1:]
 
-            newpoints = pd.concat([firsthalf, consecutive_records, secondhalf]).reset_index(drop=True)
-            st.session_state['points'] = newpoints.copy()            
-        
+        newpoints = pd.concat([firsthalf, consecutive_records, secondhalf]).reset_index(drop=True)
+        st.session_state['points'] = newpoints.copy()            
+    
         save_adjustments()
         clear_selection()
 
