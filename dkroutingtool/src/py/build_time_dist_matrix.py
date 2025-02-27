@@ -692,6 +692,13 @@ def process_nodes(config_manager,
     else:
         node_data = NodeLoader(config_manager).get_nodedata()
 
+    try:
+        file_location = config_manager.config_file_locations.routing_config_file #TODO should integrate into config manager properly eventually 
+        base_path = file_location.split('config.json')[0]
+        node_data.past_adjustments = pd.read_excel(base_path+'manual_routes_edits.xlsx')
+    except:
+        print('No past adjustment file provided, defaults to presolve without it')
+
     return node_data
 
 start_time = time.time()
