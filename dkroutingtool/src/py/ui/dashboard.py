@@ -231,7 +231,13 @@ def allow_change():
         st.session_state['selected'] = []
 
     key = f"key_{st.session_state['reset_number']}"
-    m = folium.Map(location=center, zoom_start=zoom)
+    #tiles = folium.raster_layers.TileLayer(tiles='OpenStreetMap', max_zoom=24, max_native_zoom=24)
+    #tiles = folium.raster_layers.TileLayer(tiles='https://c.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', max_zoom=24, max_native_zoom=24, attr="<a href=https://www.openstreetmap.fr/>OSM France</a>")
+    tiles = folium.raster_layers.TileLayer(tiles='https://tile.openstreetmap.org/{z}/{x}/{y}.png', max_zoom=24, max_native_zoom=19, attr="<a href=https://www.openstreetmap.org/>OpenStreetMap</a>")	
+    #m = folium.Map(location=center, tiles="Stadia.OSMBright", zoom_start=zoom, max_zoom=30)
+    m = folium.Map(location=center, tiles=tiles, zoom_start=zoom, max_zoom=24)
+    #m = folium.Map(location=center, tiles="CartoDB.Voyager", zoom_start=zoom, max_zoom=30)
+
     control = folium.LayerControl()
 
     fg = folium.FeatureGroup(name="Markers")
