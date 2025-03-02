@@ -275,12 +275,16 @@ def allow_change():
         
         capacity_threshold = st.text_input('Capacity threshold', 84)
 
-        sums = pd.DataFrame(st.session_state['points'].groupby('route')['demands'].sum()).reset_index()
-        if np.any(sums['demands'] > int(capacity_threshold)):
+        #sums = pd.DataFrame(st.session_state['points'].groupby('route')['demands'].sum()).reset_index()
+        extra_info = pd.DataFrame(st.session_state['points'].groupby(['route','columns_to_display'])['demands'].sum())
+        pivoted = pd.pivot_table(extra_info, index='route', columns='columns_to_display')
+        pivoted.columns = ["_".join(a) for a in pivoted.columns.to_flat_index()]
+        pivoted['Total'] = pivoted.sum(axis=1)
+        if np.any(pivoted['Total'] > int(capacity_threshold)):
             st.error('Check your routes for capacity, one route exceeds the threshold')
         
-        sums['Notes'] = st.session_state['edited_notes']
-        edited = st.data_editor(sums, disabled=['route', 'demands'], on_change=save_notes, hide_index=True)
+        pivoted['Notes'] = st.session_state['edited_notes']
+        edited = st.data_editor(pivoted, disabled=['route', 'demands', 'Total'], on_change=save_notes, hide_index=True)
         st.session_state['edited_notes'] = edited['Notes'].values
         
         clearing = st.button('Clear current selection')
