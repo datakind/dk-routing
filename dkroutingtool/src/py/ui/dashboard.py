@@ -283,7 +283,11 @@ def allow_change():
         if np.any(pivoted['Total'] > int(capacity_threshold)):
             st.error('Check your routes for capacity, one route exceeds the threshold')
         
-        pivoted['Notes'] = st.session_state['edited_notes']
+        try:
+            pivoted['Notes'] = st.session_state['edited_notes']
+        except:
+            pivoted['Notes'] = ''
+
         edited = st.data_editor(pivoted, disabled=['route', 'demands', 'Total'], on_change=save_notes, hide_index=True)
         st.session_state['edited_notes'] = edited['Notes'].values
         
@@ -297,9 +301,19 @@ def allow_change():
         if exporting:
             #st.write(st.session_state['points'])
             legacy_manual_edits = st.session_state['points'].copy() 
+            columns_to_export = list(original_points.columns)
+            try:
+                route_to_notes = dict()
+                for _, p in pivoted.reset_index().iterrows():
+                    route_to_notes[p['route']] = p['Notes']
+                legacy_manual_edits['Notes'] = legacy_manual_edits['route'].apply(lambda x: route_to_notes[x])
+                columns_to_export = list(original_points.columns)+['Notes']
+            except:
+                pass
+            
             legacy_manual_edits['route'] = legacy_manual_edits['route'].replace('[a-z-]', '', regex=True)
             exceloutput = BytesIO()
-            legacy_manual_edits[original_points.columns].to_excel(exceloutput, index=False, sheet_name=sheet_name, engine='openpyxl')
+            legacy_manual_edits[columns_to_export].to_excel(exceloutput, index=False, sheet_name=sheet_name, engine='openpyxl')
             exceloutput.seek(0)
             st.download_button('Download legacy_manual_routes_edits.xlsx', data=exceloutput, file_name='legacy_manual_routes_edits.xlsx')
 
