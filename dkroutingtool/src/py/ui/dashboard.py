@@ -101,23 +101,24 @@ def pick_icon(p, route_key, route_counter, selection=False):
 
 def allow_change():
     selected_prefix = "Selected, "
-
+    
     def add_markers():
+        bound_buffer = 0.007
         for route_key, frame in st.session_state['points'].groupby('route'):
             route_counter = 0
             for i,p in frame.iterrows(): # crucial information here is that i is the index label
                 if not pd.isna(p['lat_orig']):
-                    icon = pick_icon(p, route_key, route_counter)
+                    if p['lat_orig'] > st.session_state['bounds']['_southWest']['lat']-bound_buffer and p['lat_orig'] < st.session_state['bounds']['_northEast']['lat']+bound_buffer and p['long_orig'] > st.session_state['bounds']['_southWest']['lng']-bound_buffer and p['long_orig'] < st.session_state['bounds']['_northEast']['lng']+bound_buffer:
+                        icon = pick_icon(p, route_key, route_counter)
+                        marker = folium.Marker([p['lat_orig'], p['long_orig']], 
+                        tooltip=f"Name:{p['name']}, Route: {route_key}, Info: {p['columns_to_display']} {p['additional_info']}, Index: {i}",
+                        icon=icon)
+
+                        if "Aktif" not in p['columns_to_display']:
+                            fg_other.add_child(marker)
+                        else:
+                            fg.add_child(marker)
                     
-                    marker = folium.Marker([p['lat_orig'], p['long_orig']], 
-                    tooltip=f"Name:{p['name']}, Route: {route_key}, Info: {p['columns_to_display']} {p['additional_info']}, Index: {i}",
-                    icon=icon)
-
-                    if "Aktif" not in p['columns_to_display']:
-                        fg_other.add_child(marker)
-                    else:
-                        fg.add_child(marker)
-
                     route_counter += 1
                 else:
                     continue
@@ -205,7 +206,7 @@ def allow_change():
     
         save_adjustments()
         clear_selection()
-
+    
     original_points, customers, headers, sheet_name = read_data()
     st.session_state['sheet_name'] = sheet_name
     st.session_state['adjustment_columns_to_export'] = original_points.columns
@@ -225,26 +226,27 @@ def allow_change():
         st.session_state["center"] = [lat, lon]
     if "zoom" not in st.session_state:
         st.session_state["zoom"] = 15
+    if "bounds" not in st.session_state:
+        st.session_state["bounds"] = None
+    
     if 'last_selected' not in st.session_state:
         st.session_state['last_selected'] = None
     if 'selected' not in st.session_state:
         st.session_state['selected'] = []
 
     key = f"key_{st.session_state['reset_number']}"
-    #tiles = folium.raster_layers.TileLayer(tiles='OpenStreetMap', max_zoom=24, max_native_zoom=24)
-    #tiles = folium.raster_layers.TileLayer(tiles='https://c.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', max_zoom=24, max_native_zoom=24, attr="<a href=https://www.openstreetmap.fr/>OSM France</a>")
     tiles = folium.raster_layers.TileLayer(tiles='https://tile.openstreetmap.org/{z}/{x}/{y}.png', max_zoom=24, max_native_zoom=19, attr="<a href=https://www.openstreetmap.org/>OpenStreetMap</a>")	
-    #m = folium.Map(location=center, tiles="Stadia.OSMBright", zoom_start=zoom, max_zoom=30)
     m = folium.Map(location=center, tiles=tiles, zoom_start=zoom, max_zoom=24)
-    #m = folium.Map(location=center, tiles="CartoDB.Voyager", zoom_start=zoom, max_zoom=30)
-
+    
     control = folium.LayerControl()
 
     fg = folium.FeatureGroup(name="Markers")
     fg_other = folium.FeatureGroup(name="Others")
     #fg_selected = folium.FeatureGroup(name="Selected")
     #route_fgs = [folium.FeatureGroup(name=name) for name in sorted(list(partitions))]
-    add_markers()
+
+    if st.session_state['bounds'] is not None and st.session_state['bounds']['_southWest']['lat'] is not None:
+            add_markers()
 
     map_columns, info_columns = st.columns([3,1])
     with map_columns:
@@ -258,7 +260,8 @@ def allow_change():
             width=800,
             layer_control = control
         )
-
+        st.session_state['bounds'] = map_output['bounds']
+        #st.write(st.session_state['bounds'])
         update_map()
     
     with info_columns:
@@ -399,22 +402,12 @@ def adjust_from_gui():
     return message, solution, solutionmap, solution_zip
 
 def upload_data(files_from_streamlit):
-    #global session_id
-    #session_id = get_script_run_ctx().session_id # Only identifies a session if configuration files are uploaded
-
     files = [('files', file) for file in files_from_streamlit]
 
     headers = {
         'accept': 'application/json'
         #'Content-Type': 'multipart/form-data'
     }
-
-    # if you wanted to not select them everytime?
-    #files = [
-    #    ('files', open('local_data/config.json', 'rb')),
-    #    ('files', open('local_data/extra_points.csv', 'rb')),
-    #    ('files', open('local_data/customer_data.xlsx', 'rb'))]
-
     response = requests.post(f'{host_url}/provide_files/?session_id={session_id}', headers=headers, files=files)
     if response.ok:
         return 'All files uploaded successfully'
