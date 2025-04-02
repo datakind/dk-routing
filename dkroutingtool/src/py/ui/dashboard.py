@@ -10,7 +10,7 @@ from streamlit_folium import st_folium
 from folium.plugins import BeautifyIcon
 from io import StringIO, BytesIO
 import tempfile
-
+import random
 import folium
 import os
 from streamlit.runtime import get_instance
@@ -103,22 +103,22 @@ def allow_change():
     selected_prefix = "Selected, "
     
     def add_markers():
-        bound_buffer = 0.007
+        #bound_buffer = 0.1
         for route_key, frame in st.session_state['points'].groupby('route'):
             route_counter = 0
             for i,p in frame.iterrows(): # crucial information here is that i is the index label
                 if not pd.isna(p['lat_orig']):
-                    if p['lat_orig'] > st.session_state['bounds']['_southWest']['lat']-bound_buffer and p['lat_orig'] < st.session_state['bounds']['_northEast']['lat']+bound_buffer and p['long_orig'] > st.session_state['bounds']['_southWest']['lng']-bound_buffer and p['long_orig'] < st.session_state['bounds']['_northEast']['lng']+bound_buffer:
-                        icon = pick_icon(p, route_key, route_counter)
-                        marker = folium.Marker([p['lat_orig'], p['long_orig']], 
-                        tooltip=f"Name:{p['name']}, Route: {route_key}, Info: {p['columns_to_display']} {p['additional_info']}, Index: {i}",
-                        icon=icon)
+                    #if p['lat_orig'] > st.session_state['bounds']['_southWest']['lat']-bound_buffer and p['lat_orig'] < st.session_state['bounds']['_northEast']['lat']+bound_buffer and p['long_orig'] > st.session_state['bounds']['_southWest']['lng']-bound_buffer and p['long_orig'] < st.session_state['bounds']['_northEast']['lng']+bound_buffer:
+                    icon = pick_icon(p, route_key, route_counter)
+                    marker = folium.Marker([p['lat_orig'], p['long_orig']], 
+                    tooltip=f"Name:{p['name']}, Route: {route_key}, Info: {p['columns_to_display']} {p['additional_info']}, Index: {i}",
+                    icon=icon)
 
-                        if "Aktif" not in p['columns_to_display']:
-                            fg_other.add_child(marker)
-                        else:
-                            fg.add_child(marker)
-                    
+                    if "Aktif" not in p['columns_to_display']:
+                        fg_other.add_child(marker)
+                    else:
+                        fg.add_child(marker)
+                
                     route_counter += 1
                 else:
                     continue
@@ -181,6 +181,9 @@ def allow_change():
         if len(records_to_move) > 1 and st.session_state['points'].loc[records_to_move[0],'route'] != route_change:
             first_color_condition = True
 
+        if len(records_to_move) == 1:
+            first_color_condition = True
+
         st.session_state['points'].loc[records_to_move, 'route'] = route_change
         
         original = st.session_state['points'].copy()
@@ -205,7 +208,7 @@ def allow_change():
         st.session_state['points'] = newpoints.copy()            
     
         save_adjustments()
-        clear_selection()
+        clear_selection()        
     
     original_points, customers, headers, sheet_name = read_data()
     st.session_state['sheet_name'] = sheet_name
@@ -272,7 +275,8 @@ def allow_change():
             st.rerun()
         
         route_change = st.selectbox(label="Choose a route to assign the selected points", options=sorted(partitions))
-        assigning = st.button('Click to assign according to your selection')
+        assigning = st.button('Click to reorder the sequence for the selected route')
+        st.text('If the selection is a single location, clicking the button above will change it so it becomes the first stop in the selected route')
         if assigning:
             update_data(route_change)
         
@@ -503,6 +507,9 @@ def main():
         optional_columns = ['closed', 'additional_info', 'time_windows']
         for column in mandatory_columns:
             to_check = headers.get(column)
+            if column == 'name':
+                if len(set(customers[to_check])) < len(customers):
+                    st.error(f'There are duplicate records in customer_data.xlsx, you can identify and remove them by sorting the spreadsheet via the column {to_check}')        
             if to_check in customers.columns:
                 unknown_values = customers[to_check].isna().sum()
                 if unknown_values > 0:
