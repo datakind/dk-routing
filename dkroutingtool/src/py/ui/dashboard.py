@@ -33,6 +33,15 @@ session_id = ''
 
 host_url = 'http://{}:5001'.format(os.environ['SERVER_HOST'])
 
+using_redis = False
+
+try:
+    import redis
+    cache = redis.Redis(host='cartredis', port=6379, db=0)#, charset="utf-8", decode_responses=True)
+    using_redis = True
+except:
+    using_redis = False
+
 def request_data_for_adjustments():
     response = requests.get(f'{host_url}/get_adjustments/?session_id={session_id}')
     message = json.loads(response.json()['message'])
@@ -297,6 +306,8 @@ def allow_change():
 
         edited = st.data_editor(pivoted, disabled=['route', 'demands', 'Total'], on_change=save_notes, hide_index=True)
         st.session_state['edited_notes'] = edited['Notes'].values
+        if using_redis:
+            cache.set(f'{session_id}_edited_notes', json.dumps(edited['Notes'].values.tolist()))
         
         clearing = st.button('Clear current selection')
         if clearing:
@@ -420,7 +431,7 @@ def upload_data(files_from_streamlit):
 
 def main():
     st.header('Container-based Action Routing Tool (CART)')
-
+    
     if 'solution' not in st.session_state:
         st.session_state.solution = None
     if 'map' not in st.session_state:
@@ -583,11 +594,11 @@ def main():
         if old_solution_requested:
             st.session_state.solution, st.session_state.map, st.session_state.solution_zip = download_solution(solution_path='solution.txt', map_path='/maps/route_map.html')
             st.session_state.b64 = base64.b64encode(st.session_state.solution_zip).decode()
-            
+            st.session_state['edited_notes'] = json.loads(cache.get(f'{session_id}_edited_notes'))
             #st.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="solution.zip">Download solution files</a>', unsafe_allow_html=True)
             #components.html(solutionmap, height = 800)
             #st.write(solution)
-
+    
     # On button press, save solution to session state to ensure persistence of added elements to dashboard
     if solution_requested:
         st.session_state['file_already_uploaded'] = True
