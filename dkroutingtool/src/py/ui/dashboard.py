@@ -578,10 +578,13 @@ def main():
             map_requested_auto = st.button(f'Click here to download the area. You do not need to download it again if you try out multiple scenarios with the same customer_data.xlsx file')
             
             if map_requested_auto:
-                with st.spinner('Downloading the road network. Please wait...'):
-                    request_map(bounding_box)
-                #st.write(':heavy_check_mark: Road network ready for routing')
-                st.rerun() 
+                if area < 2.0:
+                    with st.spinner('Downloading the road network. Please wait...'):
+                        request_map(bounding_box)
+                    #st.write(':heavy_check_mark: Road network ready for routing')
+                    st.rerun() 
+                else:
+                    st.error('The area is too large, please trim your data or reach out via Github for your use case')
         
         if False:
             st.write('This is the presolved set of routes to which points are assigned.')
