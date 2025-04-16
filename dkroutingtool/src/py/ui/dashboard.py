@@ -38,6 +38,7 @@ using_redis = False
 try:
     import redis
     cache = redis.Redis(host='cartredis', port=6379, db=0)#, charset="utf-8", decode_responses=True)
+    cache.set('healthy', 'done')
     using_redis = True
 except:
     using_redis = False

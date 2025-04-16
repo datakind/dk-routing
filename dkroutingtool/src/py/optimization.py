@@ -1748,9 +1748,11 @@ def presolve_with_prior(node_data, config):
             for p in partition:
                 node_data.df_gps_verbose.loc[rowmapping[p],'partition'] = f'{this_config["optimized_region"]}_{i}'
     
-    partitioned_demand = node_data.df_gps_verbose.groupby('partition')['buckets'].sum()
-    print(partitioned_demand)
-    print(gps['buckets'].sum(), partitioned_demand.sum())
+    if 'partition' in node_data.df_gps_verbose.columns:
+        partitioned_demand = node_data.df_gps_verbose.groupby('partition')['buckets'].sum()
+        print(partitioned_demand)
+        print(gps['buckets'].sum(), partitioned_demand.sum())
+    
     return node_data
 
 
