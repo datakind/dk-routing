@@ -598,7 +598,8 @@ def main():
         if old_solution_requested:
             st.session_state.solution, st.session_state.map, st.session_state.solution_zip = download_solution(solution_path='solution.txt', map_path='/maps/route_map.html')
             st.session_state.b64 = base64.b64encode(st.session_state.solution_zip).decode()
-            st.session_state['edited_notes'] = json.loads(cache.get(f'{session_id}_edited_notes'))
+            if using_redis:
+                st.session_state['edited_notes'] = json.loads(cache.get(f'{session_id}_edited_notes'))
             #st.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="solution.zip">Download solution files</a>', unsafe_allow_html=True)
             #components.html(solutionmap, height = 800)
             #st.write(solution)
