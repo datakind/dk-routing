@@ -70,6 +70,8 @@ RUN apt-get update
 
 RUN apt-get -y install curl gnupg2
 
+RUN pip install scikit-learn==1.0.2
+
 RUN mkdir data
 
 RUN mkdir data/gps_data_clean

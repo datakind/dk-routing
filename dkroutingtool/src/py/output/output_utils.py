@@ -36,12 +36,13 @@ def write_to_spreadsheet(zone_route_map, routes_for_mapping, file_manager):
                     node_i += 1
 
             #formulas
-            node_name.insert(formula_index,f'=COUNTIF(A:A,"{route_id}")-2')
-            route_num.insert(formula_index,'Summary')
-            node_num.insert(formula_index,f'Route {route_id}')
-            loads.insert(formula_index,'')
-            demands.insert(formula_index, f'=SUMIFS(E:E,A:A,"{route_id}",E:E, ">0")')
-            additional_info.insert(formula_index,'')
+            if False: # users get them from the GUI if they need adjustments now
+                node_name.insert(formula_index,f'=COUNTIF(A:A,"{route_id}")-2')
+                route_num.insert(formula_index,'Summary')
+                node_num.insert(formula_index,f'Route {route_id}')
+                loads.insert(formula_index,'')
+                demands.insert(formula_index, f'=SUMIFS(E:E,A:A,"{route_id}",E:E, ">0")')
+                additional_info.insert(formula_index,'')
 
         #make a df for the zone
         zone_df = pd.DataFrame({'route': route_num, 'node_num':node_num,
@@ -59,3 +60,9 @@ def write_to_spreadsheet(zone_route_map, routes_for_mapping, file_manager):
     with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
         for zone_key, zone_df in zone_dfs.items():
             zone_df.to_excel(writer, sheet_name=zone_key, index=False)
+
+    with pd.ExcelWriter(str(output_path).replace('manual_routes','legacy_manual_routes'), engine='openpyxl') as writer: # for a specific flow, would like to deprecate or find a better solution
+        for zone_key, zone_df in zone_dfs.items():
+            new_zone_df = zone_df.copy()
+            new_zone_df['route'] = new_zone_df['route'].replace('[a-z-]', '', regex=True)
+            new_zone_df.to_excel(writer, sheet_name=zone_key, index=False)

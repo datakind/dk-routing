@@ -3,5 +3,5 @@ docker run -it \
   --mount src=`pwd`/scripts,target=/scripts,type=bind \
   -p 8080:8080 \
   -p 5001:5001 \
-  dkroutingtool:dev bash
+  ghcr.io/datakind/dk-routing:main bash
 

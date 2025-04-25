@@ -14,7 +14,63 @@ import osrmbindings
 #import osrm_text_instructions
 import os
 
-colorList = sorted(["red","blue","green","orange","purple","yellow","black","pink"])
+#colorList = ['green', 'blue',  'orange', 'purple', 'pink',  'black', 'darkred', 'lightblue', 'red', 'darkblue', 'darkpurple', 'lightgreen', 'lightred', 'lightgray', 'cadetblue', 'darkgreen', 'beige', 'gray', 'white']
+
+colorList = [
+    "#FF0000",  # red
+    "#00FF00",  # lime
+    "#0000FF",  # blue
+    "#FF00FF",  # magenta
+    "#00FFFF",  # cyan
+    "#FF8000",  # orange
+    "#800080",  # purple
+    "#008000",  # darkgreen
+    "#800000",  # maroon
+    "#008080",  # teal
+    "#808000",  # olive
+    "#4682B4",  # steelblue
+    "#A0522D",  # sienna
+    "#000000",  # black
+    "#191970",  # midnightblue
+    "#00FF80",  # springgreen
+    "#FF0080",  # rose
+    "#80FF00",  # chartreuse
+    "#8000FF",  # violet
+    "#0080FF",  # dodgerblue
+    "#E9967A",  # darksalmon
+    "#8B008B",  # darkmagenta
+    "#FFBF00",  # amber
+    "#000080",   # navy
+    "#FFFF00"  # yellow
+]
+
+color_names = [
+    "red",
+    "lime",
+    "blue",
+    "magenta",
+    "cyan",
+    "orange",
+    "purple",
+    "darkgreen",
+    "maroon",
+    "teal",
+    "olive",
+    "steelblue",
+    "sienna",
+    "black",
+    "midnightblue",
+    "springgreen",
+    "rose",
+    "chartreuse",
+    "violet",
+    "dodgerblue",
+    "darksalmon",
+    "darkmagenta",
+    "amber",
+    "navy",
+    "yellow"
+]
 
 def folium_map(routes, nodes, manual_editing_mode,
                nodes_for_mapping=None, route_names=None,
@@ -193,7 +249,13 @@ def folium_map(routes, nodes, manual_editing_mode,
                            map_html_output=buff.getvalue())
 
 def create_fol_cust_markers(border_color, marker_text, loc, pop_up):
-    ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, icon_shape='marker')
+    # relanse and koupe conditions shown as examples of data changing the format of the markers if present in additional_info 
+    if 'Relanse' in str(pop_up):
+        ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, background_color='#BFFFDA', icon_shape='marker')
+    elif 'Koupe' in str(pop_up):
+        ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, background_color='#FFBFFA', icon_shape='marker')
+    else:
+        ic = folium.plugins.BeautifyIcon(border_color=border_color, number=marker_text, icon_shape='marker')
     
     pop_up_html = ""
     pop_up_html += f'Trip index: {marker_text} <br>'

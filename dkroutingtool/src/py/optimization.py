@@ -21,12 +21,16 @@ logging.getLogger().setLevel(logging.INFO)
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import fcluster
+
+from sklearn import decomposition
+import math
+
 import string
 import ujson
 
 import manual_viz
 import file_config
-from visualization import colorList
+from visualization import colorList, color_names
 from output.route_solution_data import IntermediateOptimizationSolution, FinalOptimizationSolution
 import osrmbindings
 
@@ -45,6 +49,8 @@ max_time_horizon = 24*60*60
 
 color_naming = True
 north_south_ordering = True
+
+vehicle_surplus_factor = 1 #2 would mean twice as many vehicle per zone as the total demand requires
 
 verbose = False
 
@@ -259,6 +265,8 @@ class DataProblem():
         self._time_distance = node_data.get_time_or_dist_mat(veh=vehicle[0].osrm_profile, time_or_dist='time')[_boolean_selected][:,_boolean_selected]
         self._elevation_cost = node_data.get_time_or_dist_mat(veh=vehicle[0].osrm_profile, time_or_dist='elevation')[_boolean_selected][:,_boolean_selected]
         
+        self.dfverbose = node_data.df_gps_verbose.iloc[_boolean_selected].reset_index()
+
         self._num_locations = self._locations.shape[0]
         self._demands = [i if pd.notnull(i) else 0 for i in self._demands]
         self.nodes_to_names = dict()
@@ -585,10 +593,12 @@ def create_vehicle(node_data, config):
     else:
         total_demand = sum([i for i in node_data.get_attr('buckets')[_boolean_selected] if i > 0])
         # Works for now but if vehicles of diff capacity in same zone we need to change this to get the total capacity
-        vehicle_number = int((total_demand / config['trips_vehicle_profile'][0][1]) * 2) # 2 provides good surplus for balancing
+        #vehicle_number = int((total_demand / config['trips_vehicle_profile'][0][1]) * 2) # 2 provides good surplus for balancing
+        vehicle_number = math.ceil((total_demand / config['trips_vehicle_profile'][0][1]) * vehicle_surplus_factor)+1 # 2 provides good surplus for balancing
+        
         # Provide at least 4 vehicles for flexibility with balancing - if dealing with a low demand zone
         vehicle_number = max([4, vehicle_number])
-
+        
         vehicles = []
         for vec in range(num_vehicle_type): # TODO - if there are multiple vehicle types then we create a lot of extra vehicles
             _time_distance = node_data.get_time_or_dist_mat(veh = vehicle_profile[vec][0], time_or_dist='time')[_boolean_selected][:,_boolean_selected]   
@@ -605,7 +615,8 @@ def create_vehicle(node_data, config):
     return vehicles
 
 
-def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max_solver_time_min=2, soft_upper_bound_value=0, soft_upper_bound_penalty=0, span_cost_coefficient=0, fast_run=False):
+def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max_solver_time_min=2, soft_upper_bound_value=0, soft_upper_bound_penalty=0, span_cost_coefficient=0, clustering_radius=None, fast_run=False, presolved=False, presolved_from_past=False):
+    # Ignores clustering_radius locally, the config argument is taken in globally earlier in the flow
     manager = pywrapcp.RoutingIndexManager(int(data.num_locations),
                                         int(data.num_vehicles), 
                                        [int(data.names_to_nodes[i.start]) for i in vehicles],
@@ -790,8 +801,18 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
                     # ref https://github.com/google/or-tools/issues/1258
 
                 veh_counter += vehicles_needed
-
-
+    
+    if presolved:
+        vehicle_counter = 0
+        for key, partition in data.dfverbose.groupby(['partition']):
+            for node in partition.index:
+                routing.SetAllowedVehiclesForIndex([vehicle_counter], manager.NodeToIndex(node))
+            vehicle_counter += 1
+        print('Number of vehicles', len(vehicles))
+        for index, row in data.dfverbose.iterrows():
+            if pd.isna(row['partition']):
+                routing.SetAllowedVehiclesForIndex(list(range(0,len(vehicles))), manager.NodeToIndex(index))
+                                                   
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.time_limit.seconds = 60 * max_solver_time_min
     search_parameters.first_solution_strategy = (
@@ -940,6 +961,11 @@ def find_near_point(segment, route_df, forbidden, step_size_factor):
     return to_return
 
 def resequence(node_data, data, routing, routes_all, original_routes, vehicle_profiles, unload_routes = None):
+    '''This is an iterative algorithm going step by step through the route as initially ordered
+    and queueing up nearby locations as they are encountered, reordering them to produce a route to
+    minimize situations where a driver passes by a location only to stop there on the way back
+    This does not allow a route to steal locations from other routes.'''
+
     ordered_nodes = dict()
     per_route_nodes = dict()
     
@@ -1302,6 +1328,11 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
     global_solver_options = config.get('global_solver_options')
     prev_route_dict = None
     prev_vehicles = None
+
+    if 'clustering_radius' in global_solver_options:
+        global agg_threshold_radius
+        agg_threshold_radius = global_solver_options.get('clustering_radius')
+
     prev_keys = set([])
     zone_route_map = {}
     #for each zone configuration
@@ -1333,9 +1364,10 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
             consider_elevation = False
         else:
             consider_elevation = this_config.get('consider_elevation', False)
-        print(consider_elevation)
+        #print(consider_elevation)
         supernodes = []
-        if clustering_agglomeration:
+        
+        if clustering_agglomeration and not global_solver_options.get('presolved',False):
             original_node_data_filtered = copy.deepcopy(node_data_filtered)
             first_vehicle_profile = this_config['trips_vehicle_profile'][0][0]
             cluster_capacity = this_config['trips_vehicle_profile'][0][1]
@@ -1361,7 +1393,7 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
         #printer.print()
         #return routing, assignment, manager, data
 
-        if clustering_agglomeration:
+        if clustering_agglomeration and not global_solver_options.get('presolved',False):
             current_routes = get_routes(routing, data, assignment, manager)
             full_routes = get_full_routes(current_routes, supernodes, fictional_points)
 
@@ -1420,7 +1452,7 @@ def add_display_name(route_dict):
     new_route_dict = copy.deepcopy(route_dict)
 
     for key in new_route_dict:
-        new_route_dict[key]['display_name'] = f'{colorList[key % len(colorList)]}-{key+1}'
+        new_route_dict[key]['display_name'] = f'{color_names[key % len(colorList)]}-{key+1}'
     
     return new_route_dict
 
@@ -1574,11 +1606,171 @@ def finalize_route_solution(solution: IntermediateOptimizationSolution, config) 
         zone_route_map=solution.zone_route_map
     )
 
+                                    
+def produce_crude_partitions(gps, partition_size, matrix): 
+    latsorted = gps.sort_values('principalcomponent',ascending=False)
+    longsorted = gps.sort_values('secondcomponent',ascending=False)
+    
+    longindices = list(longsorted.index.values)
+    latindices = list(latsorted.index.values)
+
+    def bookkeeping(records):
+        for record in records:
+            gone.add(record)
+            longindices.remove(record)
+            latindices.remove(record)
+
+    def score(candidates, gps):
+        return matrix[candidates][:,candidates].var()
+
+    partitions = []
+
+    stop = len(latindices)
+    gone = set()
+    partitions_sizes = []
+    while len(gone) < stop:
+        longcandidate = []
+        longsize = 0
+        for record in longindices:
+            demand = longsorted.loc[record]['buckets']
+            if longsize + demand > partition_size:
+                break
+            else:
+                longcandidate.append(record)
+                longsize += demand
+
+        latcandidate = []
+        latsize = 0
+        for record in latindices:
+            demand = latsorted.loc[record]['buckets']
+            if latsize + demand > partition_size:
+                break
+            else:
+                latcandidate.append(record)
+                latsize += demand
+
+        latscore = score(latcandidate, latsorted.loc[latcandidate])
+        longscore = score(longcandidate, longsorted.loc[longcandidate])
+        print(latscore, longscore)
+
+        if latscore < longscore:
+            partitions.append(latcandidate)
+            partitions_sizes.append(latsize)
+            bookkeeping(latcandidate)
+        else:
+            partitions.append(longcandidate)
+            partitions_sizes.append(longsize)
+            bookkeeping(longcandidate)
+    return partitions
+
+def produce_partitions(gps, partition_size, matrix=None):
+        sortedcomponent = gps.sort_values('principalcomponent')
+        
+        partitions = [[]]
+        partitions_sizes = [0]
+        for index in sortedcomponent.index:
+            record = sortedcomponent.loc[index]
+            if partitions_sizes[-1] + record['buckets'] > partition_size:
+                partitions.append([])
+                partitions_sizes.append(0)
+            
+            partitions[-1].append(index)
+            partitions_sizes[-1] += record['buckets']
+        return partitions
+
+def presolve(node_data, config):
+    """Creates partitions according to vehicle capacity and total demand, 
+    speeding up routing and enabling more intuitive geographical clustering of stops.
+    Only works if only one vehicle type is used per zone."""
+
+    coords_to_cluster = ['lat_orig', 'long_orig']
+
+    for this_config in config['zone_configs']:
+        only_the_zone = {'zone': this_config['optimized_region']}
+        node_data_filtered = node_data.filter_nodedata(only_the_zone, filter_name_str='multiple_sample')
+        gps = node_data_filtered.df_gps_verbose.copy()
+        total_demand = gps['buckets'].sum()
+
+        capacity = this_config['trips_vehicle_profile'][0][1] # only works with enable_unload == False because of this line
+        vehicle_number = math.ceil(total_demand/capacity)
+        partition_size = min(math.ceil(total_demand/vehicle_number)+gps['buckets'].max(), capacity) # allows demand variation
+
+        rotated = decomposition.PCA().fit_transform(gps[coords_to_cluster].values)
+        gps.loc[:,'principalcomponent'] = rotated[:,0]
+        gps.loc[:,'secondcomponent'] = rotated[:,1]
+        
+        matrix = node_data.get_time_or_dist_mat(this_config['trips_vehicle_profile'][0][0]) # only one type of vehicle supported
+        partitions = produce_partitions(gps, partition_size, matrix)
+        
+        for i, partition in enumerate(partitions):
+            node_data.df_gps_verbose.loc[partition,'partition'] = f'{this_config["optimized_region"]}_{i}'
+    
+    return node_data
+
+def presolve_with_prior(node_data, config):
+    """Creates partitions according to vehicle capacity and total demand, 
+    speeding up routing and enabling more intuitive geographical clustering of stops.
+    Only works if only one vehicle type is used per zone."""
+
+    adjusts = node_data.past_adjustments.copy()
+    
+    for this_config in config['zone_configs']:
+        only_the_zone = {'zone': this_config['optimized_region']}
+        capacity = this_config['trips_vehicle_profile'][0][1] # only works with enable_unload == False because of this line
+                                    
+        node_data_filtered = node_data.filter_nodedata(only_the_zone, filter_name_str='multiple_sample')
+        gps = node_data_filtered.df_gps_verbose.copy()
+        rowmapping = dict()
+        for index, row in gps.iterrows():
+            rowmapping[row['name']] = index
+                            
+        all_additional = set(gps['name'])
+        partitions = []
+        if len(set(adjusts['node_name']).intersection(all_additional)) > 0:
+            node_key = 'node_name'
+        else:
+            node_key = 'additional_info'
+
+        for route_key, frame in adjusts.groupby('route'):
+            partitions.append([])
+            current_capacity = 0
+            for index, row in frame.iterrows():
+                if not pd.isna(row[node_key]):
+                    if row[node_key] in all_additional:
+                          demand = gps.loc[rowmapping[row[node_key]], 'buckets']
+                          if current_capacity + demand <= capacity:
+                              partitions[-1].append(row[node_key])        
+                              current_capacity += demand
+                          else:
+                              break
+                                
+        for i, partition in enumerate(partitions):
+            for p in partition:
+                node_data.df_gps_verbose.loc[rowmapping[p],'partition'] = f'{this_config["optimized_region"]}_{i}'
+    
+    if 'partition' in node_data.df_gps_verbose.columns:
+        partitioned_demand = node_data.df_gps_verbose.groupby('partition')['buckets'].sum()
+        print(partitioned_demand)
+        print(gps['buckets'].sum(), partitioned_demand.sum())
+    
+    return node_data
+
+
 def run_optimization(node_data, config):
     """Main entrypoint for optimization"""
     starting_time = time.time()
 
+    presolved = config['global_solver_options'].get('presolved',False)
+    presolved_from_past = config['global_solver_options'].get('presolved_from_past',False)
+
+    if presolved:
+        print("Presolving")
+        if presolved_from_past:
+            node_data = presolve_with_prior(node_data, config)
+        else:
+            node_data = presolve(node_data, config)
     # Solve the routing problem.
+    
     solution = solve(node_data, config)
 
     # Finalize the optimization solution.
