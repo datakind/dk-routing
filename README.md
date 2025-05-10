@@ -5,9 +5,9 @@
 
 A tool that enables the planning of container pickup and dropoff at many locations with customizables vehicles (speed, allowed roadways, capacity, etc.)
 
-User instructions are at https://github.com/datakind/dk-routing/blob/main/dkroutingtool/README.md
+Documentation can be found on the wiki: https://github.com/datakind/dk-routing/wiki 
 
-Configuration manual is at https://docs.google.com/document/d/1iOlXQk6_ElM_LdawJPREHNjVkv_2Qajam3is2hm5zyM
+Technical instructions are at https://github.com/datakind/dk-routing/blob/main/dkroutingtool/README.md
 
 Developed by volunteers and DataKind, formerly known as DataKind Routing Tool. The initial goal was to provide routing assistance for container-based sanitation organizations and we're open sourcing the tool to make sure it can reach many more use cases and organizations.
 
