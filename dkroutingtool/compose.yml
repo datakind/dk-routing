@@ -1,17 +1,37 @@
+volumes:
+  redisdata:
+    driver: local
 services:
+  cartredis:
+    image: redis
+    restart: always
+    volumes:
+      - redisdata:/data
+    command: redis-server --bind 0.0.0.0
   backend:
+    restart: always
     image: ghcr.io/datakind/dk-routing:main
     command: /opt/conda/bin/python src/py/server.py
     ports:
       - "5001:5001"
-      - "8080:8080"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
   frontend:
+    restart: always
     environment:
       SERVER_HOST: backend
     build:
       context: ./src/py/ui/
       dockerfile: dashboard.dockerfile
     ports:
-      - "8501:8501"
+      - "80:8501"
     volumes:
       - ./src/py/ui:/src/app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
