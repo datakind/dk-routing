@@ -80,7 +80,6 @@ olddevelop:
 		-v D:/repos/dk-routing/dkroutingtool/src/py/ui/:/src/app/ \
 		dashboard:latest
 
-# go to your browser at port 80, or if you'd like to use a different port (e.g. 8111), change 80:8501 in the compose.yml file to 8111:8501
 develop:
 	docker compose up --detach
 
