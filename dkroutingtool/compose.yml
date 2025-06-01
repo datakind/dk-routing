@@ -27,7 +27,7 @@ services:
       context: ./src/py/ui/
       dockerfile: dashboard.dockerfile
     ports:
-      - "80:8501"
+      - "8501:8501"
     volumes:
       - ./src/py/ui:/src/app
     logging:
