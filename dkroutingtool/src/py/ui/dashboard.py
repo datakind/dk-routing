@@ -572,6 +572,11 @@ def main():
 
             if bound_check(tuple(bounding_box), old_bounding_box):
                 st.write(':heavy_check_mark: The currently available map covers the desired area, no need to redownload it unless you edited OSM since the last download')
+            elif area < 0.2 and 'alreadydownloaded' not in st.session_state:
+                st.session_state['alreadydownloaded'] = True
+                with st.spinner("Downloading the road network. Please wait..."):
+                    request_map(bounding_box)
+                st.rerun()
             else:
                 st.error(f"It would be recommended to download the area as you have locations in your input data outside the currently downloaded area. The size is {round(area,2)} in Cartesian square units, be mindful that values above 0.2 may lead to the download taking many minutes")
             
