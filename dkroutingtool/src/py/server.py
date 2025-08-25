@@ -154,8 +154,6 @@ def download(session_id: str=''):
 
 @app.get('/request_map/')
 def request_map(minlat, minlon, maxlat, maxlon):  
-    stateful_info['bounding_box'] = [minlat, minlon, maxlat, maxlon]
-
     request_template = f'''
     [out:xml]
     [bbox:{minlon},{minlat}, {maxlon}, {maxlat}];
@@ -171,6 +169,7 @@ def request_map(minlat, minlon, maxlat, maxlon):
         opened.write(r.text)
     os.environ['osm_filename'] = 'ui_map'
     temporary_build_profiles()
+    stateful_info['bounding_box'] = [minlat, minlon, maxlat, maxlon]
     return {'message': 'Done'}
 
 
