@@ -40,8 +40,18 @@ colorList = [
     "#E9967A",  # darksalmon
     "#8B008B",  # darkmagenta
     "#FFBF00",  # amber
-    "#000080",   # navy
-    "#FFFF00"  # yellow
+    "#000080",  # navy
+    "#FFFF00",  # yellow
+    "#FFFFFF",  # white
+    "#808080",  # gray
+    "#A52A2A",  # brown
+    "#FFC0CB",  # pink
+    "#FFD700",  # gold
+    "#C0C0C0",  # silver
+    "#4B0082",  # indigo
+    "#D2B48C",  # tan
+    "#87CEEB",  # skyblue
+    "#F0E68C",  # khaki
 ]
 
 color_names = [
@@ -69,7 +79,17 @@ color_names = [
     "darkmagenta",
     "amber",
     "navy",
-    "yellow"
+    "yellow",
+    "white",
+    "gray",
+    "brown",
+    "pink",
+    "gold",
+    "silver",
+    "indigo",
+    "tan",
+    "skyblue",
+    "khaki",
 ]
 
 def folium_map(routes, nodes, manual_editing_mode,

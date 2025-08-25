@@ -22,8 +22,10 @@ import yaml
 
 #TODO Need to make sure you can retrieve original solution state even if manual adjustments were requested? 
 
-colors_hex = ["#FF0000", "#00FF00", "#0000FF", "#FF00FF", "#00FFFF", "#FF8000", "#800080", "#008000", "#800000", "#008080", "#808000", "#4682B4", "#A0522D", "#000000", "#191970", "#00FF80", "#FF0080", "#80FF00", "#8000FF", "#0080FF", "#E9967A", "#8B008B", "#FFBF00", "#000080", "#FFFF00"]
-color_names = ["red", "lime", "blue", "magenta", "cyan", "orange", "purple", "darkgreen", "maroon", "teal", "olive", "steelblue", "sienna", "black", "midnightblue", "springgreen", "rose", "chartreuse", "violet", "dodgerblue", "darksalmon", "darkmagenta", "amber", "navy", "yellow"]
+
+
+colors_hex = ["#FF0000","#00FF00","#0000FF","#FF00FF","#00FFFF","#FF8000","#800080","#008000","#800000","#008080","#808000","#4682B4","#A0522D","#000000","#191970","#00FF80","#FF0080","#80FF00","#8000FF","#0080FF","#E9967A","#8B008B","#FFBF00","#000080","#FFFF00","#FFFFFF","#808080","#A52A2A","#FFC0CB","#FFD700","#C0C0C0","#4B0082","#D2B48C","#87CEEB","#F0E68C"]
+color_names = ["red", "lime", "blue", "magenta", "cyan", "orange", "purple", "darkgreen", "maroon", "teal", "olive", "steelblue", "sienna", "black", "midnightblue", "springgreen", "rose", "chartreuse", "violet", "dodgerblue", "darksalmon", "darkmagenta", "amber", "navy", "yellow", "white","gray","brown","pink","gold","silver","indigo","tan","skyblue","khaki"]
 color_map = {k:v for k,v in zip(color_names,colors_hex)}
 
 st.set_page_config(page_title='Container-based Action Routing Tool (CART)', layout="wide")
