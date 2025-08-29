@@ -42,7 +42,6 @@ colorList = [
     "#FFBF00",  # amber
     "#000080",  # navy
     "#FFFF00",  # yellow
-    "#FFFFFF",  # white
     "#808080",  # gray
     "#A52A2A",  # brown
     "#FFC0CB",  # pink
@@ -80,7 +79,6 @@ color_names = [
     "amber",
     "navy",
     "yellow",
-    "white",
     "gray",
     "brown",
     "pink",
