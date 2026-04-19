@@ -25,124 +25,110 @@
 osrm::OSRM* osrm_machine;
 
 void initialize(std::string filepath){
-    osrm::EngineConfig config;    
-    // Configure based on a .osrm base path, and no datasets in shared mem from osrm-datastore
+    osrm::EngineConfig config;
     config.storage_config = {filepath};
     config.use_shared_memory = false;
-
-    // We support two routing speed up techniques:
-    // - Contraction Hierarchies (CH): requires extract+contract pre-processing
-    // - Multi-Level Dijkstra (MLD): requires extract+partition+customize pre-processing
-    //
-    //config.algorithm = EngineConfig::Algorithm::MLD;
     config.algorithm = osrm::EngineConfig::Algorithm::CH;
-
     osrm_machine = new osrm::OSRM(config);
+}
+
+// helper to extract a string from the new variant-based json
+static std::string get_string(const osrm::json::Object& obj, const std::string& key) {
+    return std::get<osrm::json::String>(obj.values.at(key)).value;
 }
 
 std::string route(pybind11::list longitudes, pybind11::list latitudes)
 {
     osrm::RouteParameters params;
 
-    for (int index = 0; index < longitudes.size(); index++) {
+    for (size_t index = 0; index < longitudes.size(); index++) {
         float longitude = longitudes[index].cast<float>();
         float latitude = latitudes[index].cast<float>();
         params.coordinates.push_back({osrm::util::FloatLongitude{longitude}, osrm::util::FloatLatitude{latitude}});
     }
-    
+
     params.steps = true;
-
     params.overview = osrm::RouteParameters::OverviewType::Full;
-
     params.geometries = osrm::RouteParameters::GeometriesType::GeoJSON;
 
     osrm::json::Object result;
-
     const auto status = osrm_machine->Route(params, result);
 
     if (status == osrm::Status::Ok)
     {
         std::ostringstream buf;
         osrm::util::json::render(buf, result);
-        auto stringified_json = buf.str();
-     
-        return stringified_json;
+        return buf.str();
     }
     else if (status == osrm::Status::Error)
     {
-        const auto code = result.values["code"].get<osrm::json::String>().value;
-        const auto message = result.values["message"].get<osrm::json::String>().value;
-
+        const auto code = get_string(result, "code");
+        const auto message = get_string(result, "message");
         std::cout << "Code: " << code << "\n";
-        std::cout << "Message: " << code << "\n";
+        std::cout << "Message: " << message << "\n";
         return message;
     }
+    return "";
 }
 
 std::string nearest(float longitude, float latitude)
 {
     osrm::NearestParameters params;
-
     params.coordinates.push_back({osrm::util::FloatLongitude{longitude}, osrm::util::FloatLatitude{latitude}});
 
     osrm::json::Object result;
-
     const auto status = osrm_machine->Nearest(params, result);
 
     if (status == osrm::Status::Ok)
     {
-    
         std::ostringstream buf;
         osrm::util::json::render(buf, result);
-        auto stringified_json = buf.str();
-
-        return stringified_json;
-    } else if (status == osrm::Status::Error) 
+        return buf.str();
+    }
+    else if (status == osrm::Status::Error)
     {
-        const auto message = result.values["message"].get<osrm::json::String>().value;
+        const auto message = get_string(result, "message");
         return message;
     }
+    return "";
 }
 
 std::string table(pybind11::list longitudes, pybind11::list latitudes)
 {
     osrm::TableParameters params;
 
-    for (int index = 0; index < longitudes.size(); index++) {
+    for (size_t index = 0; index < longitudes.size(); index++) {
         float longitude = longitudes[index].cast<float>();
         float latitude = latitudes[index].cast<float>();
         params.coordinates.push_back({osrm::util::FloatLongitude{longitude}, osrm::util::FloatLatitude{latitude}});
     }
-    osrm::json::Object result;
 
+    params.annotations = osrm::TableParameters::AnnotationsType::All;
+
+    osrm::json::Object result;
     const auto status = osrm_machine->Table(params, result);
 
     if (status == osrm::Status::Ok)
     {
         std::ostringstream buf;
         osrm::util::json::render(buf, result);
-        auto stringified_json = buf.str();
-     
-        return stringified_json;
+        return buf.str();
     }
     else if (status == osrm::Status::Error)
     {
-        const auto code = result.values["code"].get<osrm::json::String>().value;
-        const auto message = result.values["message"].get<osrm::json::String>().value;
-
+        const auto code = get_string(result, "code");
+        const auto message = get_string(result, "message");
         std::cout << "Code: " << code << "\n";
-        std::cout << "Message: " << code << "\n";
-        
+        std::cout << "Message: " << message << "\n";
         return message;
     }
+    return "";
 }
-
 
 namespace py = pybind11;
 
 PYBIND11_MODULE(osrmbindings, m) {
     m.doc() = "OSRM Bindings";
-
     m.def("route", &route, "Route binding");
     m.def("table", &table, "Table binding");
     m.def("nearest", &nearest, "Nearest binding");

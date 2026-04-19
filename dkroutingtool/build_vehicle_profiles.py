@@ -24,7 +24,7 @@ print(desired_vehicles)
 
 print('Extracting-contracting networks per vehicle')
 
-vehicles = glob.glob('osrm-backend/profiles/*.lua')
+vehicles = glob.glob('/opt/*.lua')
 
 osm_filename = os.environ['osm_filename']
 

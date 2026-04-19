@@ -1,22 +1,18 @@
-FROM debian:stretch
+FROM ghcr.io/project-osrm/osrm-backend:v6.0.0@sha256:b94bc7f32bae6d96bea9344ae51f612ca67c7d776d6c6f96a15b6134d244e4c0
 
-RUN sed -i s/deb.debian.org/archive.debian.org/g /etc/apt/sources.list
-RUN sed -i 's|security.debian.org|archive.debian.org/|g' /etc/apt/sources.list
-RUN sed -i '/stretch-updates/d' /etc/apt/sources.list
+#FROM ghcr.io/project-osrm/osrm-backend:v5.27.1
 
-RUN apt-get update
-
-RUN apt-get -y install git g++ cmake libboost-dev libboost-filesystem-dev libboost-thread-dev libboost-system-dev libboost-regex-dev libstxxl-dev libxml2-dev libsparsehash-dev libbz2-dev zlib1g-dev libzip-dev libgomp1 lua5.2 liblua5.2-dev libluabind-dev pkg-config libgdal-dev libboost-program-options-dev libboost-iostreams-dev libboost-test-dev libtbb-dev libexpat1-dev wget
-
-#RUN git clone -b 5.21 --single-branch https://github.com/Project-OSRM/osrm-backend.git
-# Archive of the lines above, temporary until we modernize the routing tool, might also use 
-#RUN wget https://github.com/Project-OSRM/osrm-backend/archive/refs/tags/v5.24.0.tar.gz && tar -xvf v5.24.0.tar.gz && mv /osrm-backend-5.24.0 /osrm-backend
-COPY osrm-backend.tar.gz . 
-RUN tar -zxvf osrm-backend.tar.gz
-
-COPY /c_binding_resources/table_parameters.hpp osrm-backend/include/engine/api/table_parameters.hpp
-
-RUN cd osrm-backend && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . && cmake --build . --target install
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    build-essential \
+    git \
+    cmake \
+    pkg-config \
+    python3-dev \
+    wget \ 
+    curl \
+    gnupg2 \
+    libboost-all-dev
 
 ARG osm_download_url
 
@@ -26,17 +22,17 @@ ENV osm_filename $osm_filename_arg
 
 RUN wget -O "$osm_filename_arg.osm.pbf" --no-check-certificate $osm_download_url
 
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py313_26.1.1-1-Linux-x86_64.sh
 
-RUN bash Miniconda3-py37_4.8.3-Linux-x86_64.sh -b -p /opt/conda
+RUN bash Miniconda3-py313_26.1.1-1-Linux-x86_64.sh -b -p /opt/conda
 
 ENV PATH="${PATH}:/opt/conda/bin"
 
-RUN mkdir osrm-backend/defaultprofiles
+RUN mkdir /opt/defaultprofiles
 
-RUN mv osrm-backend/profiles/*.lua osrm-backend/defaultprofiles/
+RUN mv /opt/*.lua /opt/defaultprofiles/
 
-COPY /veh_profiles/* osrm-backend/profiles/
+COPY /veh_profiles/* /opt/
 
 COPY build_parameters.yml .
 
@@ -48,29 +44,42 @@ COPY requirements.txt .
 
 RUN /opt/conda/bin/python -m pip install -r requirements.txt
 
-#RUN conda install cffi==1.12.2
-
 RUN apt-get -y install vim
 
-RUN git clone -b v2.3 https://github.com/pybind/pybind11.git
+RUN git clone --depth=1 -b v3.0.0 https://github.com/pybind/pybind11.git
 
-RUN cp -r osrm-backend/include osrm-backend/example
+RUN mkdir -p /opt/bindings
+COPY c_binding_resources/CMakeLists.txt /opt/bindings/
 
-COPY /c_binding_resources/CMakeLists.txt .
+COPY c_binding_resources/python_bindings.cpp /opt/bindings/example.cpp
 
-COPY /c_binding_resources/python_bindings.cpp example.cpp
+RUN cp -r /usr/local/include /opt/bindings/include
 
-RUN cd osrm-backend/example && mv ../../CMakeLists.txt . && mv ../../example.cpp .
+RUN cp -r /opt/pybind11 /opt/bindings/pybind11
 
-RUN cp -r pybind11 osrm-backend/example/
+RUN git clone --depth=1 \
+    https://github.com/Project-OSRM/osrm-backend.git /opt/osrm-src \
+ && cp -r /opt/osrm-src/include/* /opt/bindings/include/ \
+ && cp -r /opt/osrm-src/third_party/fmt/include/fmt /opt/bindings/include/fmt \
+ && rm -rf /opt/osrm-src
 
-RUN cd osrm-backend/example && mkdir build && cd build && cmake .. && make
+RUN apt-get remove -y libfmt-dev || true
 
-RUN apt-get update
+# build fmt from the same source OSRM used
+RUN git clone --depth=1 -b 10.2.1 https://github.com/fmtlib/fmt.git /opt/fmt-src \
+ && cmake -S /opt/fmt-src -B /opt/fmt-src/build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DFMT_TEST=OFF \
+ && cmake --build /opt/fmt-src/build --parallel $(nproc) \
+ && cmake --install /opt/fmt-src/build --prefix /opt/fmt \
+ && rm -rf /opt/fmt-src
 
-RUN apt-get -y install curl gnupg2
-
-RUN pip install scikit-learn==1.0.2
+RUN cd /opt/bindings && mkdir build && cd build && \
+    cmake .. \
+      -DPython_EXECUTABLE=/opt/conda/bin/python \
+      -Dfmt_DIR=/opt/fmt/lib/cmake/fmt \
+    && make
 
 RUN mkdir data
 
@@ -100,13 +109,15 @@ COPY Makefile .
 
 RUN mkdir -p py-lib
 
-RUN mv osrm-backend/example/build/osrmbindings.cpython-37m-x86_64-linux-gnu.so py-lib/
+RUN mv /opt/bindings/build/osrmbindings.cpython-313-x86_64-linux-gnu.so py-lib/
 
-#RUN pip uninstall -y typing-extensions && pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
-RUN pip uninstall -y typing-extensions && pip install typing-extensions==4.7.1
+RUN apt-get install -y libfmt-dev
 
 COPY src src
 
 ENV PYTHONPATH "${PYTHONPATH}:./py-lib:/src/python"
 
-CMD ["/opt/conda/bin/python", "src/py/main_application.py", "--local"]
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib/x86_64-linux-gnu
+
+CMD ["/opt/conda/bin/python", "/src/py/main_application.py", "--local"]
+
