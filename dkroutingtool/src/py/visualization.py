@@ -427,7 +427,7 @@ def create_visualizations(solution: FinalOptimizationSolution,
         route_names[route_id] = vehicles[route_id].name
 
         #Select the profile for OSRM to construct routes for
-        osrmbindings.initialize(f"/{vehicles[route_id].osrm_profile}/{os.environ['osm_filename']}")
+        osrmbindings.initialize(f"/opt/{vehicles[route_id].osrm_profile}/{os.environ['osm_filename']}")
 
         for index, location in enumerate(route): 
             longitudes.append(location[0][1])

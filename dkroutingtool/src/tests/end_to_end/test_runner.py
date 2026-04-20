@@ -31,7 +31,7 @@ def does_it_work_at_all():
     assert len(solution) > 1, "The solution file is empty"
     print('Success:', time.time()-start, 'seconds')
 
-subprocess.Popen("/opt/conda/bin/python /src/py/server.py &", shell=True)
+subprocess.Popen("/opt/conda/bin/python /opt/src/py/server.py &", shell=True)
 time.sleep(10)
 does_it_work_at_all()
 

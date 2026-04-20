@@ -1078,7 +1078,7 @@ def produce_temporary_routes(routes, vehicle_profiles, data, unload_routes = Non
         end_point = end_points[index]
         
         if len(route) > 0:
-            osrmbindings.initialize(f"/{vehicle_profile}/{os.environ['osm_filename']}")
+            osrmbindings.initialize(f"/opt/{vehicle_profile}/{os.environ['osm_filename']}")
             
             route = [start_point]+route+[end_point]
             

@@ -8,10 +8,10 @@ run_and_serve:
 	docker run --name server -p 5001:5001 -d --rm ghcr.io/datakind/dk-routing:main /opt/conda/bin/python src/py/server.py
 
 serve:
-	/opt/conda/bin/python /src/py/server.py &
+	/opt/conda/bin/python /opt/src/py/server.py &
 
 test: 
-	/opt/conda/bin/python /src/tests/end_to_end/test_runner.py
+	/opt/conda/bin/python /opt/src/tests/end_to_end/test_runner.py
 
 dockergui:
 	cd src/py/ui && docker build -t dashboard -f dashboard.dockerfile . 
@@ -77,7 +77,7 @@ olddevelop:
 		-p 8501:8501 \
 		-d \
 		--rm \
-		-v D:/repos/dk-routing/dkroutingtool/src/py/ui/:/src/app/ \
+		-v D:/repos/dk-routing/dkroutingtool/src/py/ui/:/opt/src/app/ \
 		dashboard:latest
 
 develop:

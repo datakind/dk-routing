@@ -4,10 +4,10 @@ COPY requirements.txt .
 
 RUN pip install -r requirements.txt
 
-WORKDIR /src/app
+WORKDIR /opt/src/app
 
-COPY dashboard.py /src/app
+COPY dashboard.py /opt/src/app
 
 EXPOSE 8501
 
-CMD streamlit run /src/app/dashboard.py --browser.gatherUsageStats=False --theme.base="dark" --server.address=0.0.0.0 --server.runOnSave=True --server.headless=True --server.fileWatcherType="poll"
+CMD streamlit run /opt/src/app/dashboard.py --browser.gatherUsageStats=False --theme.base="dark" --server.address=0.0.0.0 --server.runOnSave=True --server.headless=True --server.fileWatcherType="poll"

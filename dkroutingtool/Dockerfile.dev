@@ -57,8 +57,12 @@ RUN cp -r /usr/local/include /opt/bindings/include
 
 RUN cp -r /opt/pybind11 /opt/bindings/pybind11
 
+
+
 RUN git clone --depth=1 \
     https://github.com/Project-OSRM/osrm-backend.git /opt/osrm-src \
+ && git -C /opt/osrm-src fetch --depth=1 origin 054b0a6395f689a47a908b26b12e32ed7704c533 \
+ && git -C /opt/osrm-src checkout 054b0a6395f689a47a908b26b12e32ed7704c533 \
  && cp -r /opt/osrm-src/include/* /opt/bindings/include/ \
  && cp -r /opt/osrm-src/third_party/fmt/include/fmt /opt/bindings/include/fmt \
  && rm -rf /opt/osrm-src
@@ -119,5 +123,5 @@ ENV PYTHONPATH "${PYTHONPATH}:./py-lib:/src/python"
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib/x86_64-linux-gnu
 
-CMD ["/opt/conda/bin/python", "/src/py/main_application.py", "--local"]
+CMD ["/opt/conda/bin/python", "/opt/src/py/main_application.py", "--local"]
 

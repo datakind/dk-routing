@@ -35,7 +35,7 @@ for vehicle_file in vehicles:
     if vehicle_name not in desired_vehicles:
         continue
     print('Building', vehicle_file)
-    subprocess.run(['osrm-extract', '-p', vehicle_file, f'{osm_filename}.osm.pbf'])
-    subprocess.run(['mkdir', vehicle_name])
-    subprocess.run(f'mv {osm_filename}.osrm* {vehicle_name}/', shell=True)
-    subprocess.run(['osrm-contract', f'{osm_filename}.osrm'], cwd=vehicle_name)
+    subprocess.run(['osrm-extract', '-p', vehicle_file, f'/opt/{osm_filename}.osm.pbf'])
+    subprocess.run(['mkdir', f'/opt/{vehicle_name}'])
+    subprocess.run(f'mv /opt/{osm_filename}.osrm* /opt/{vehicle_name}/', shell=True)
+    subprocess.run(['osrm-contract', f'/opt/{vehicle_name}/{osm_filename}.osrm'])
