@@ -3,7 +3,7 @@ import attr
 import pathlib
 from pathlib import Path
 
-ROOT_OUTPUT_FOLDER = '/opt/'
+ROOT_OUTPUT_FOLDER = '.'
 DATA_FOLDER = 'data'
 GPS_CLEAN_FOLDER = 'gps_data_clean'
 TIME_DIST_FOLDER = 'time_and_dist_matrices'

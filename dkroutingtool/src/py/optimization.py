@@ -639,8 +639,8 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
 
         def distance_callback_vehicle(from_index, to_index, data=distance_matrix, service_time = int(data.time_per_demand_unit), clusters=data.node_clusters, points = data.all_start_points+data.all_end_points, unload_indices = data.unload_indices):
             # Convert from routing variable Index to distance matrix NodeIndex.
-            from_node = manager.IndexToNode(from_index)
-            to_node = manager.IndexToNode(to_index)
+            from_node = manager.IndexToNode(int(from_index))
+            to_node = manager.IndexToNode(int(to_index))
             
             total_service_time = service_time # adjust when config suggests the number of containers increases the load time (and think about supernodes/clusters too)
             if clusters and from_node not in points:
@@ -659,7 +659,7 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
             else:
                 travel_time = data[from_node][to_node]
             
-            return int(travel_time)+total_service_time
+            return int(travel_time)+int(total_service_time)
 
         transit_callback.append(distance_callback_vehicle)
         transit_callback_index_arr.append(routing.RegisterTransitCallback(transit_callback[-1]))
@@ -672,7 +672,8 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
 
         def demand_evaluator(manager, node):
             """Returns the demand of the current node"""
-            return _demands[manager.IndexToNode(node)]
+            return int(_demands[manager.IndexToNode(int(node))])
+
 
         return demand_evaluator
 
@@ -1407,7 +1408,7 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
                 assignment, manager, routing =  get_optimal_route(data, vehicles, **solver_options)
 
         if resequencing:
-            resequence_time = time.clock()
+            resequence_time = time.perf_counter()
             current_routes = get_routes(routing, data, assignment, manager)
             if this_config['enable_unload']:
                 unload_routes = deconstruct_routes(current_routes, node_data_filtered, data)
@@ -1419,7 +1420,7 @@ def solve(node_data, config: str) -> IntermediateOptimizationSolution:
                 new_assignment = resequence(node_data_filtered, data, routing, routes_all, current_routes, [vehicle._osrm_profile for vehicle in vehicles])
             if new_assignment is not None:
                 assignment = new_assignment
-            logging.info(f'Took {time.clock() - resequence_time} seconds to resequence')
+            logging.info(f'Took {time.perf_counter() - resequence_time} seconds to resequence')
 
         printer = ConsolePrinter(data, routing, assignment, manager)
         printer.print()
