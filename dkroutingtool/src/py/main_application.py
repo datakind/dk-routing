@@ -37,8 +37,8 @@ args = parser.parse_args()
 gpx_output = True
 
 def main(user_directory='data'):
-    OUTPUT_DATA_DIR = f'WORKING_DATA_DIR/{user_directory}/output_data/'
-    INPUT_DATA_DIR = f'WORKING_DATA_DIR/{user_directory}/input_data/' # should test cloud setting eventually
+    OUTPUT_DATA_DIR = f'/opt/WORKING_DATA_DIR/{user_directory}/output_data/'
+    INPUT_DATA_DIR = f'/opt/WORKING_DATA_DIR/{user_directory}/input_data/' # should test cloud setting eventually
     
     timestamp = time.strftime("%Y_%m_%d_%H_%M")
     logging.info(f"Model Run Initiated {timestamp} (UTC)")

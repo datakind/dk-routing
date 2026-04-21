@@ -20,7 +20,7 @@ app = fastapi.FastAPI()
 stateful_info = dict()
 
 def find_most_recent_output(session_id):
-    most_recent = sorted(glob.glob(f'/WORKING_DATA_DIR/data{session_id}/output_data/*'))[-1]
+    most_recent = sorted(glob.glob(f'/opt/WORKING_DATA_DIR/data{session_id}/output_data/*'))[-1]
     return most_recent
 
 @app.post('/provide_files')
@@ -28,7 +28,7 @@ def provide_files(files: List[UploadFile] = File(...), session_id: str=''):
     for file in files:
         contents = file.file.read()
         #print(contents)
-        provided = f'/data{session_id}/{file.filename}'
+        provided = f'/opt/data{session_id}/{file.filename}'
         os.makedirs(os.path.dirname(provided), exist_ok=True)
         with open(provided, 'wb') as f:
             f.write(contents)
@@ -41,24 +41,24 @@ def update_vehicle_or_map(session_id: str=''):
     build_profiles = False
 
     # Look for and move uploaded build_parameters.yml
-    build_params_file = glob.glob(f'/data{session_id}/build_parameters.yml')
+    build_params_file = glob.glob(f'/opt/data{session_id}/build_parameters.yml')
     if build_params_file:
-        os.replace(build_params_file[0], '/build_parameters.yml')
+        os.replace(build_params_file[0], '/opt/build_parameters.yml')
         build_profiles = True
     # Look for and move any vehicle files
-    vehicle_files = glob.glob(f'/data{session_id}/*.lua')
+    vehicle_files = glob.glob(f'/opt/data{session_id}/*.lua')
     if vehicle_files:
         for curr_file in vehicle_files:
-            os.replace(curr_file, os.path.join('/osrm-backend/profiles', os.path.basename(curr_file)))
+            os.replace(curr_file, os.path.join('/opt', os.path.basename(curr_file)))
             veh_directory = '/'+os.path.basename(curr_file)[:-4] # removing the extension
             if not os.path.exists(veh_directory):
                 os.makedirs(veh_directory)
         build_profiles = True
     # Look for osm.pbf file. Just pulls the first in sorted order if multiple are present.
-    map_files = sorted(glob.glob(f'/data{session_id}/*.pbf'))
+    map_files = sorted(glob.glob(f'/opt/data{session_id}/*.pbf'))
     if map_files:
         os.environ['osm_filename'] = 'upload_map'
-        os.replace(map_files[0], '/upload_map.osm.pbf')
+        os.replace(map_files[0], '/opt/upload_map.osm.pbf')
         build_profiles = True
     if build_profiles:
         temporary_build_profiles(osmpbf=True)
@@ -117,7 +117,8 @@ def save_adjustments(files: List[UploadFile] = File(...), session_id: str='', sh
     for file in files: # Only one expected
         contents = file.file.read()
         file.file.close()
-        adjustments = pd.read_json(contents, orient='split')
+        adjustments = pd.read_json(io.BytesIO(contents), orient='split')
+        #adjustments = pd.read_json(contents, orient='split')
         adjustments.to_excel(f'{most_recent}/manual_edits/manual_routes_edits.xlsx', index=False, sheet_name=sheet_name)
 
     return {'message': 'Adjustments saved'}
@@ -134,8 +135,8 @@ def get_adjustments(session_id: str=''):
     adjustments = adjustments[sheet_name]
     
     dataset['adjustments'] = adjustments.to_json(orient='split', index=False)
-    dataset['customers'] = pd.read_excel(f'data{session_id}/customer_data.xlsx').to_json(orient='split', index=False)
-    with open(f'data{session_id}/custom_header.yaml', 'r') as path:
+    dataset['customers'] = pd.read_excel(f'/opt/data{session_id}/customer_data.xlsx').to_json(orient='split', index=False)
+    with open(f'/opt/data{session_id}/custom_header.yaml', 'r') as path:
         dataset['headers'] = path.read()
     dataset['error'] = error
     dataset['sheet_name'] = sheet_name
@@ -163,9 +164,11 @@ def request_map(minlat, minlon, maxlat, maxlon):
     out body qt;
     '''
     url = 'https://overpass-api.de/api/interpreter'
+    #url = "https://overpass.private.coffee/api/interpreter"
     print(request_template)
-    r = requests.post(url, data=request_template)
-    with open('ui_map.osm', 'w', encoding='utf-8') as opened:
+    #r = requests.post(url, data={'data': request_template})
+    r = requests.post(url, data=request_template, headers={"User-Agent": "Container-Based Action Routing Tool/2026.04.21 (sebouel@gmail.com)"})
+    with open('/opt/ui_map.osm', 'w', encoding='utf-8') as opened:
         opened.write(r.text)
     os.environ['osm_filename'] = 'ui_map'
     temporary_build_profiles()
@@ -179,7 +182,7 @@ def request_vehicles():
 
 
 def get_vehicles():
-    with open('/build_parameters.yml', 'r') as opened:
+    with open('/opt/build_parameters.yml', 'r') as opened:
         all_lines = opened.readlines()
         desired_vehicles = []
         found_types = False
@@ -199,7 +202,7 @@ def temporary_build_profiles(osmpbf=False):
 
     print('Extracting-contracting networks per vehicle')
 
-    vehicles = glob.glob('/osrm-backend/profiles/*.lua')
+    vehicles = glob.glob('/opt/*.lua')
 
     osm_filename = os.environ['osm_filename']
 
@@ -211,12 +214,11 @@ def temporary_build_profiles(osmpbf=False):
             continue
         print('Building', vehicle_file)
         if not osmpbf:
-            subprocess.run(['osrm-extract', '-p', vehicle_file, f'/{osm_filename}.osm'])
+            subprocess.run(['osrm-extract', '-p', vehicle_file, f'/opt/{osm_filename}.osm'])
         else:
-            subprocess.run(['osrm-extract', '-p', vehicle_file, f'/{osm_filename}.osm.pbf'])
-        subprocess.run(f'mv {osm_filename}.osrm* {vehicle_name}/', shell=True)
-        subprocess.run(['osrm-contract', f'{osm_filename}.osrm'], cwd=vehicle_name)
-    
+            subprocess.run(['osrm-extract', '-p', vehicle_file, f'/opt/{osm_filename}.osm.pbf'])
+        subprocess.run(f'mv /opt/{osm_filename}.osrm* /opt/{vehicle_name}/', shell=True)
+        subprocess.run(['osrm-contract', f'/opt/{vehicle_name}/{osm_filename}.osrm'])
 
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=5001)

@@ -428,11 +428,11 @@ class NodeLoader:
 
         if len(unload_depots) > 0:
             unload_to_append = pd.DataFrame(unload_depots)
-            df_gps_customers = df_gps_customers.append(unload_to_append, ignore_index=True, sort=False)
+            df_gps_customers = pd.concat([df_gps_customers, unload_to_append], ignore_index=True, sort=False)
 
 
         #Merge the customer and extra data
-        self.df_gps_verbose = df_gps_customers.append(df_gps_extra, ignore_index=True, sort=False)
+        self.df_gps_verbose = pd.concat([df_gps_customers, df_gps_extra], ignore_index=True, sort=False)
 
         self.df_gps_verbose['name'] = self.df_gps_verbose['name'].astype(str)
 
@@ -505,7 +505,7 @@ class NodeLoader:
             
             for profile in self.config_manager.get_build_parameters().get_vehicle_profiles():
                 veh = profile
-                osrmbindings.initialize(f"/{veh}/{os.environ['osm_filename']}")
+                osrmbindings.initialize(f"/opt/{veh}/{os.environ['osm_filename']}")
                 snapped_lat_profile = []
                 snapped_long_profile = []
                 snapped_dist_profile = []
@@ -567,7 +567,7 @@ class NodeLoader:
         if True in bad_indices_mask:
             removed_df = self.df_gps_verbose[bad_indices_mask].copy()
             removed_df[NodeData.flag] = pd.Series(flag_label, index = removed_df.index)
-            self.df_bad_gps_verbose = self.df_bad_gps_verbose.append(removed_df, sort=False)
+            self.df_bad_gps_verbose = pd.concat([self.df_bad_gps_verbose, removed_df], sort=False)
             #Now, actually remove the rows
             if remove_node:
                 self.df_gps_verbose.drop(index = removed_df.index, inplace=True)
@@ -596,7 +596,7 @@ class NodeLoader:
             distances (np array): distance matrix
             snapped_gps_coords (np array): snapped gps coordinates
         """
-        osrmbindings.initialize(f"/{veh}/{os.environ['osm_filename']}")
+        osrmbindings.initialize(f"/opt/{veh}/{os.environ['osm_filename']}")
 
         latitudes = lat_long_coords[:,0].tolist()
         longitudes = lat_long_coords[:,1].tolist()

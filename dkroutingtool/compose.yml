@@ -13,9 +13,9 @@ services:
   backend:
     restart: always
     image: ghcr.io/datakind/dk-routing:main
-    command: /opt/conda/bin/python src/py/server.py
+    command: /opt/conda/bin/python /opt/src/py/server.py
     volumes:
-      - serverdata:/WORKING_DATA_DIR
+      - serverdata:/opt/WORKING_DATA_DIR
     ports:
       - "5001:5001"
     logging:
@@ -33,7 +33,7 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./src/py/ui:/src/app
+      - ./src/py/ui:/opt/src/app
     logging:
       driver: "json-file"
       options:

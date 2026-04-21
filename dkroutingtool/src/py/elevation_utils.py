@@ -57,7 +57,7 @@ def compute_elevation_costs(vehicle, longitudes, latitudes):
     """Keeps the same order as the duration and distance matrices from the NodeData/Loader classes
     """
     print(f'Starting elevation calculations: {datetime.datetime.now()}')
-    osrmbindings.initialize(f'/{vehicle}/{osrm_filepath}')
+    osrmbindings.initialize(f'/opt/{vehicle}/{osrm_filepath}')
 
     elevation_cost = np.zeros((len(longitudes),len(longitudes)))
 
