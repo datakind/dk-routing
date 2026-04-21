@@ -117,7 +117,8 @@ def save_adjustments(files: List[UploadFile] = File(...), session_id: str='', sh
     for file in files: # Only one expected
         contents = file.file.read()
         file.file.close()
-        adjustments = pd.read_json(contents, orient='split')
+        adjustments = pd.read_json(io.BytesIO(contents), orient='split')
+        #adjustments = pd.read_json(contents, orient='split')
         adjustments.to_excel(f'{most_recent}/manual_edits/manual_routes_edits.xlsx', index=False, sheet_name=sheet_name)
 
     return {'message': 'Adjustments saved'}
@@ -162,11 +163,11 @@ def request_map(minlat, minlon, maxlat, maxlon):
     >;
     out body qt;
     '''
-    #url = 'https://overpass-api.de/api/interpreter'
-    url = "https://overpass.private.coffee/api/interpreter"
+    url = 'https://overpass-api.de/api/interpreter'
+    #url = "https://overpass.private.coffee/api/interpreter"
     print(request_template)
-    r = requests.post(url, data={'data': request_template})
-    #r = requests.post(url, data=request_template)
+    #r = requests.post(url, data={'data': request_template})
+    r = requests.post(url, data=request_template, headers={"User-Agent": "Container-Based Action Routing Tool/2026.04.21 (sebouel@gmail.com)"})
     with open('/opt/ui_map.osm', 'w', encoding='utf-8') as opened:
         opened.write(r.text)
     os.environ['osm_filename'] = 'ui_map'

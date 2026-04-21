@@ -138,8 +138,11 @@ def folium_map(routes, nodes, manual_editing_mode,
             top_right_lat = max(ys)
     
     # Make an empty map
-    f_map = folium.Map(location=[0, 0], tiles="OpenStreetMap", zoom_start=12, max_zoom=24)
-    
+    #f_map = folium.Map(location=[0, 0], tiles="CartoDB voyager", zoom_start=12, max_zoom=24)
+    f_map = folium.Map(location=[0, 0], tiles="https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", attr="OpenStreetMap France", zoom_start=12, max_zoom=24) 
+
+    #f_map.get_root().header.add_child(folium.Element('<meta name="referrer" content="no-referrer-when-downgrade">'))
+
     f_map.fit_bounds([[bottom_left_lat, bottom_left_long], [top_right_lat, top_right_long]])
 
     #add nodes to node_feature
