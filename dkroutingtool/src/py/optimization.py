@@ -798,7 +798,8 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
                         if verbose:
                             logging.info('Output of deprecated clustering method')
                             logging.info('-->', n,'veh=', veh_list)
-                        routing.SetAllowedVehiclesForIndex(veh_list, manager.NodeToIndex(n)) 
+                        #routing.SetAllowedVehiclesForIndex(veh_list, manager.NodeToIndex(n))
+                        routing.VehicleVar(manager.NodeToIndex(int(n))).SetValues([-1] + [int(v) for v in veh_list]) 
                     # ref https://github.com/google/or-tools/issues/1258
 
                 veh_counter += vehicles_needed
@@ -807,13 +808,14 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
         vehicle_counter = 0
         for key, partition in data.dfverbose.groupby(['partition']):
             for node in partition.index:
-                routing.SetAllowedVehiclesForIndex([vehicle_counter], manager.NodeToIndex(node))
+                routing.VehicleVar(manager.NodeToIndex(int(node))).SetValues([-1, int(vehicle_counter)])
+                #routing.SetAllowedVehiclesForIndex([vehicle_counter], manager.NodeToIndex(node))
             vehicle_counter += 1
         print('Number of vehicles', len(vehicles))
         for index, row in data.dfverbose.iterrows():
             if pd.isna(row['partition']):
-                routing.SetAllowedVehiclesForIndex(list(range(0,len(vehicles))), manager.NodeToIndex(index))
-                                                   
+                #routing.SetAllowedVehiclesForIndex(list(range(0,len(vehicles))), manager.NodeToIndex(index))
+                routing.VehicleVar(manager.NodeToIndex(int(index))).SetValues([-1] + list(range(0, len(vehicles))))                                  
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.time_limit.seconds = 60 * max_solver_time_min
     search_parameters.first_solution_strategy = (
@@ -835,7 +837,8 @@ def get_optimal_route(data, vehicles, dist_or_time='time', warmed_up = None, max
             if reoptimize_subnodes == 'strict': 
                 for vehicle_index, route in enumerate(warmed_up):
                     for node_index in route:
-                        routing.SetAllowedVehiclesForIndex([vehicle_index], manager.NodeToIndex(node_index))
+                        routing.VehicleVar(manager.NodeToIndex(int(node_index))).SetValues([-1, int(vehicle_index)])
+                        #routing.SetAllowedVehiclesForIndex([vehicle_index], manager.NodeToIndex(node_index))
                 search_parameters.time_limit.seconds = int(60 * max_solver_time_min * reoptimize_time_factor)
                 assignment = routing.SolveWithParameters(search_parameters)
             elif reoptimize_subnodes == 'relaxed':
